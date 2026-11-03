@@ -1,0 +1,11 @@
+.env
+state/
+__pycache__/
+*.p8
+.switch/
+rooms.json
+settings.local.json
+demo/DemoCam/
+*.log
+.DS_Store
+.cc-writes/
