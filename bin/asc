@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""The only way agents reach App Store Connect. Writes stay dry runs without --apply.
+
+Reads .env so agents never have to, and lets each agent run only its own commands, whatever its permission rules say.
+Run from the repo root (the poster, you), every command is available. From anywhere else, none is.
+"""
+import os
+import pathlib
+import sys
+
+from common import ENV, ROOT
+
+KIT = ROOT / "kit/asc.py"
+ONLY = {"stats": {"status", "customer-reviews"},
+        "reviews": {"status", "customer-reviews", "reply"},
+        "release": {"status", "create-version", "attach-build", "whatsnew", "submit", "release"},
+        "l10n": set()}
+
+args = sys.argv[1:]
+cwd = pathlib.Path.cwd()
+if cwd != ROOT:
+    only = ONLY.get(cwd.name, set()) if cwd.parent == ROOT / "agents" else set()
+    if not any(arg in only for arg in args[:1]):
+        raise SystemExit(f"From here you can only run: {', '.join(sorted(only)) or 'nothing'}. The command must come first.")
+
+for key, value in ENV.items():
+    if not key.startswith("SWITCH_"):
+        os.environ[key] = value
+if ENV.get("ASC_MOCK"):
+    os.execv(sys.executable, [sys.executable, str(KIT), "--mock", ENV["ASC_MOCK"], *args])
+os.execv(str(KIT), [str(KIT), *args])

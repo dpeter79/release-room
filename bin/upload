@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Archives an app's committed code and uploads the build to App Store Connect. It can take up to 15 minutes.
+
+    bin/upload APP_ID REPO [--apply]      # a dry run without --apply
+
+Reads the keys from .env, so agents never see them. For XcodeGen projects on macOS, whose scheme is project.yml's
+name. The key must be in ~/.appstoreconnect/private_keys. Sign in to Xcode and build once by hand first, so signing works.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import pathlib
+import plistlib
+import re
+import shutil
+import subprocess
+
+from common import ENV, ROOT, git, only_release, read_spec, spec_value, uploaded_builds
+
+
+def run_upload(repo: pathlib.Path, scheme: str, team: str, work: pathlib.Path) -> None:
+    key, issuer = ENV.get("APP_STORE_KEY_ID", ""), ENV.get("APP_STORE_ISSUER_ID", "")
+    keys_dir = pathlib.Path.home() / ".appstoreconnect/private_keys"
+    if not (keys_dir / f"AuthKey_{key}.p8").exists():
+        raise SystemExit(f"The key named by APP_STORE_KEY_ID isn't in {keys_dir}. Copy it there.")
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    archive, export, log = work / f"{scheme}.xcarchive", work / "export", work / "upload.log"
+    with (work / "ExportOptions.plist").open("wb") as f:
+        plistlib.dump({"method": "app-store-connect", "signingStyle": "automatic", "teamID": team, "destination": "export"}, f)
+
+    def failed(label: str) -> SystemExit:
+        tail = "\n".join(log.read_text().splitlines()[-25:]).replace(key, "<key>").replace(issuer, "<issuer>")
+        return SystemExit(f"{label} failed, and nothing reached Apple unless that step was Uploading. Log: {log}\n{tail}")
+
+    def step(label: str, *command: str) -> None:
+        print(label, flush=True)
+        try:
+            with log.open("a") as out:
+                done = subprocess.run(command, cwd=repo, stdout=out, stderr=subprocess.STDOUT,
+                                      env={**os.environ, "API_PRIVATE_KEYS_DIR": str(keys_dir)})
+        except OSError as e:
+            raise SystemExit(f"{label} failed: can't run {command[0]}: {e}")
+        if done.returncode:
+            raise failed(label)
+
+    step("Generating the project", "xcodegen", "generate")
+    step("Archiving", "xcodebuild", "archive", "-project", f"{scheme}.xcodeproj", "-scheme", scheme, "-configuration", "Release",
+         "-destination", "generic/platform=macOS", "-archivePath", str(archive), "-allowProvisioningUpdates",
+         "CODE_SIGN_IDENTITY=Apple Development")
+    step("Exporting", "xcodebuild", "-exportArchive", "-archivePath", str(archive), "-exportPath", str(export),
+         "-exportOptionsPlist", str(work / "ExportOptions.plist"), "-allowProvisioningUpdates")
+    packages = list(export.glob("*.pkg"))
+    if len(packages) != 1:
+        raise SystemExit(f"Expected one .pkg in {export}, found {len(packages)}. Nothing was uploaded.")
+    step("Uploading", "xcrun", "altool", "--upload-app", "-f", str(packages[0]), "-t", "macos", "--apiKey", key, "--apiIssuer", issuer)
+    if "UPLOAD SUCCEEDED" not in log.read_text():  # altool can exit 0 after a failure
+        raise failed("Uploading")
+
+
+def main() -> None:
+    only_release("upload")
+    p = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("app")
+    p.add_argument("repo", type=lambda s: pathlib.Path(s).expanduser().resolve())
+    p.add_argument("--apply", action="store_true", help="really build and upload; the default is a dry run")
+    a = p.parse_args()
+
+    text = read_spec(a.repo)
+    version, build = spec_value(text, "MARKETING_VERSION"), spec_value(text, "CURRENT_PROJECT_VERSION")
+    if any(b["version"] == version and b["build"] == build for b in uploaded_builds(a.app)):
+        raise SystemExit(f"{version} ({build}) is already uploaded. Run bin/bump first.")
+    dirty = git(a.repo, "status", "--porcelain").splitlines()
+    if dirty:
+        raise SystemExit(f"{a.repo.name} has {len(dirty)} uncommitted changes, and a build must match committed code. "
+                         "The person commits or stashes them first.")
+    match = re.search(r"^name:\s*[\"']?([\w .-]+?)[\"']?\s*$", text, re.M)
+    if not match:
+        raise SystemExit("project.yml needs a top-level name, which is also the scheme to build.")
+    name = match.group(1)
+    commit = git(a.repo, "log", "-1", "--format=%h").strip()
+    print(f"{'Uploading' if a.apply else 'Would archive and upload'} {name} {version} ({build}) from commit {commit}.")
+    if not a.apply:
+        return
+    if ENV.get("ASC_MOCK"):
+        raise SystemExit("This repo is set to the fake App Store Connect, so nothing real can be uploaded.")
+    run_upload(a.repo, name, spec_value(text, "DEVELOPMENT_TEAM"), ROOT / "state/upload" / name)
+    print(f"Uploaded {name} {version} ({build}). @asc reports it when Apple has processed it, usually within minutes.")
+
+
+if __name__ == "__main__":
+    main()

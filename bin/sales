@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Daily sales for one app, as JSON. Finished days are cached in state/sales, since Apple never changes them.
+
+    bin/sales DemoCam [DAYS]          # Pacific days ending yesterday; DAYS defaults to 14
+
+Reports cover the whole developer account, so only titles starting with the given name are kept.
+SALES_PROBE and SALES_CONFIG come from .env; docs/setup.md describes what a probe must print.
+"""
+import datetime
+import decimal
+import json
+import re
+import subprocess
+import sys
+import zoneinfo
+
+from common import ENV, ROOT
+
+CACHE = ROOT / "state/sales"
+
+
+def summary(day: str) -> dict:
+    cached = CACHE / f"{day}.json"
+    if cached.exists():
+        return json.loads(cached.read_text())
+    if not ENV.get("SALES_PROBE"):
+        raise SystemExit("Sales aren't set up: SALES_PROBE is empty in .env. See docs/setup.md.")
+    try:
+        out = subprocess.run([ENV["SALES_PROBE"], ENV.get("SALES_CONFIG", ""), "--summary", day, "--currency", "EUR"],
+                             capture_output=True, text=True)
+    except OSError as e:
+        raise SystemExit(f"Can't run the sales probe: {e}")
+    try:
+        report = json.loads(out.stdout)
+    except ValueError:
+        raise SystemExit(f"The sales probe failed: {out.stderr.strip()[:300] or 'no output'}")
+    if out.returncode:
+        raise SystemExit(report.get("text", "The sales report failed."))
+    if report["status"] == "report":
+        CACHE.mkdir(parents=True, exist_ok=True)
+        cached.write_text(json.dumps(report))
+    return report
+
+
+def main(app: str, count: int) -> None:
+    yesterday = datetime.datetime.now(zoneinfo.ZoneInfo("America/Los_Angeles")).date() - datetime.timedelta(days=1)
+    days, totals, unconverted = [], {}, set()
+    for offset in range(count - 1, -1, -1):
+        day = (yesterday - datetime.timedelta(days=offset)).isoformat()
+        report = summary(day)
+        if report["status"] != "report":
+            days.append({"day": day, "status": report["status"]})
+            continue
+        products = [p for p in report["products"] if re.match(rf"{re.escape(app)}\b", p["title"], re.I)]
+        proceeds = sum((decimal.Decimal(p["proceeds"]) for p in products), decimal.Decimal(0))
+        days.append({"day": day, "status": "report", "proceeds_eur": str(proceeds),
+                     "products": [{k: p[k] for k in ("title", "units", "proceeds")} for p in products]})
+        unconverted |= set(report["unconverted"])
+        for p in products:
+            total = totals.setdefault(p["title"], {"units": 0, "proceeds": decimal.Decimal(0)})
+            total["units"] += p["units"]
+            total["proceeds"] += decimal.Decimal(p["proceeds"])
+    print(json.dumps({"app": app, "currency": "EUR", "days": days,
+                      "totals": {t: {"units": v["units"], "proceeds": str(v["proceeds"])} for t, v in totals.items()},
+                      "account_currencies_unconverted": sorted(unconverted),
+                      "notes": ["Days are Pacific. Yesterday's report appears about 17:00 CET.",
+                                "status missing means not ready yet or no sales that day; Apple doesn't say which.",
+                                "Units are net of refunds. Updates and re-downloads are excluded."]},
+                     ensure_ascii=False, indent=1))
+
+
+if __name__ == "__main__":
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and not sys.argv[2].isdigit()):
+        raise SystemExit(__doc__)
+    main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) == 3 else 14)

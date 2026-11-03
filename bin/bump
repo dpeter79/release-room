@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Sets a new version with the next free build number, and commits it together with the translations.
+
+    bin/bump APP_ID REPO VERSION [--apply]      # a dry run without --apply
+
+Changes project.yml and every Info.plist it names. The commit holds only those files and any changed
+marketing/localization/*/strings.json, and the dry run lists them, so other unfinished work is left alone.
+"""
+from __future__ import annotations
+
+import argparse
+import pathlib
+import re
+import subprocess
+
+from common import git, only_release, read_spec, spec_value, uploaded_builds
+
+
+def set_plist_value(text: str, key: str, value: str) -> str:
+    """Replaces a literal value. A value like $(MARKETING_VERSION) follows project.yml by itself."""
+    return re.sub(rf"(<key>{key}</key>\s*<string>)(?!\$\()[^<]*(</string>)", rf"\g<1>{value}\2", text)
+
+
+def main() -> None:
+    only_release("bump")
+    p = argparse.ArgumentParser(description=__doc__, allow_abbrev=False, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("app")
+    p.add_argument("repo", type=lambda s: pathlib.Path(s).expanduser().resolve())
+    p.add_argument("version")
+    p.add_argument("--apply", action="store_true", help="really change and commit; the default is a dry run")
+    a = p.parse_args()
+    if not re.fullmatch(r"\d+(\.\d+){1,2}", a.version):
+        raise SystemExit(f"{a.version} isn't a version number like 1.2.8.")
+
+    text = read_spec(a.repo)
+    current, build = spec_value(text, "MARKETING_VERSION"), spec_value(text, "CURRENT_PROJECT_VERSION")
+    if not build.isdigit():
+        raise SystemExit(f"CURRENT_PROJECT_VERSION must be a whole number, found {build}.")
+    builds = uploaded_builds(a.app)
+    if current == a.version and not any(b["version"] == current and b["build"] == build for b in builds):
+        print(f"project.yml is already at {current} ({build}), and that build isn't uploaded. Nothing to do.")
+        return
+    numbers = lambda v: [int(part) for part in v.split(".")]
+    if current != a.version and numbers(a.version) < numbers(current):
+        raise SystemExit(f"{a.version} is older than the current {current}.")
+    if subprocess.run(["git", "-C", str(a.repo), "symbolic-ref", "-q", "HEAD"], capture_output=True).returncode:
+        raise SystemExit(f"{a.repo.name} isn't on a branch, so a commit here would get lost.")
+
+    plists = re.findall(r"^\s*INFOPLIST_FILE:\s*(\S+)\s*$", text, re.M)
+    changing = ["project.yml", *plists]
+    if git(a.repo, "status", "--porcelain", "--", *changing).strip():
+        raise SystemExit(f"These have uncommitted changes: {', '.join(changing)}. Commit them first, so this commit holds only the bump.")
+    notes = [line[3:] for line in git(a.repo, "status", "--porcelain", "--untracked-files=all", "--", "marketing/localization").splitlines()
+             if line.endswith("/strings.json")]
+
+    number = max([int(build)] + [int(b["build"]) for b in builds if b["build"].isdigit()]) + 1
+    print(f"{'Bumping' if a.apply else 'Would bump'} {current} ({build}) to {a.version} ({number}), and commit:",
+          ", ".join(changing + notes))
+    if not a.apply:
+        return
+
+    originals = {name: (a.repo / name).read_text() for name in changing}
+    new_spec = text
+    for key, value in (("MARKETING_VERSION", a.version), ("CURRENT_PROJECT_VERSION", str(number))):
+        new_spec = re.sub(rf'^(\s*{key}:\s*).*$', rf'\g<1>"{value}"', new_spec, flags=re.M)
+    (a.repo / "project.yml").write_text(new_spec)
+    for name in plists:
+        plist = set_plist_value(originals[name], "CFBundleShortVersionString", a.version)
+        (a.repo / name).write_text(set_plist_value(plist, "CFBundleVersion", str(number)))
+    try:
+        if notes:
+            git(a.repo, "add", "--", *notes)
+        message = f"Bump to {a.version} ({number})" + (" with release notes" if notes else "")
+        git(a.repo, "commit", "-m", message, "--", *changing, *notes)
+    except subprocess.CalledProcessError as e:
+        for name, original in originals.items():
+            (a.repo / name).write_text(original)
+        raise SystemExit(f"The commit failed, so the version files were put back: {e.stderr.strip()[-300:]}")
+    print("Committed:", git(a.repo, "log", "-1", "--format=%h %s").strip())
+
+
+if __name__ == "__main__":
+    main()
