@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Sets up the demo: a fictional app, a fake App Store Connect and invented sales, on your local Switch server.
+
+    python3 demo/setup.py             # .env, fake state, demo repo, lock, @asc, the demo template. Safe to re-run.
+    python3 demo/setup.py --connect   # after running the template: points @asc at democam-release
+"""
+from __future__ import annotations
+
+import http.cookiejar
+import json
+import os
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from lock_agents import lock  # noqa: E402
+from save_template import save, with_docs  # noqa: E402
+from switch_op import op  # noqa: E402
+
+ENV = ROOT / ".env"
+STATE = ROOT / "state"
+REPO = ROOT / "demo/DemoCam"
+LOCAL_SERVER = pathlib.Path.home() / "Library/Application Support/switchdash/local-switch-server"
+TEMPLATE = "democam-demo"
+AGENTS = {"release": "Runs the App Store release", "l10n": "Translates release notes",
+          "stats": "Answers questions about sales, downloads and submission status",
+          "reviews": "Shows customer reviews and drafts replies for approval"}
+REGISTER_BY_HAND = """Couldn't register @asc automatically: {}
+Create a registration key instead (docs/troubleshooting.md explains how), then run:
+    python3 register_asc.py < file-with-the-key
+    make demo"""
+
+
+def write_env() -> None:
+    if ENV.exists():
+        if not re.search(r"^ASC_MOCK=.+$", ENV.read_text(), re.M):
+            raise SystemExit("This clone's .env is set up for a real app, so the demo won't touch it. Clone again for the demo.")
+        return
+    text = (ROOT / ".env.example").read_text()
+    text = re.sub(r"^ASC_MOCK=.*$", f"ASC_MOCK={STATE / 'demo-asc.json'}", text, flags=re.M)
+    text = re.sub(r"^SALES_PROBE=.*$", f"SALES_PROBE={ROOT / 'demo/fake_probe.py'}", text, flags=re.M)
+    ports = LOCAL_SERVER / "ports.json"
+    if ports.exists():  # Console picks the port
+        api = json.loads(ports.read_text())["api"]
+        text = re.sub(r"^SWITCH_API=.*$", f"SWITCH_API=http://127.0.0.1:{api}", text, flags=re.M)
+    ENV.write_text(text)
+    os.chmod(ENV, 0o600)
+
+
+def write_fixtures() -> None:
+    STATE.mkdir(exist_ok=True)
+    if not (STATE / "demo-asc.json").exists():
+        shutil.copy(ROOT / "kit/fixtures/demo-state.json", STATE / "demo-asc.json")
+    if not (REPO / "marketing/localization").exists():
+        shutil.rmtree(REPO, ignore_errors=True)
+        subprocess.run(["sh", ROOT / "kit/fixtures/make-demo-repo.sh", REPO], check=True)
+        shutil.copytree(ROOT / "kit/fixtures/demo-locales", REPO / "marketing/localization")
+
+
+def register_asc() -> None:
+    """Makes a registration key through the local server's Gateway API, then deletes it. The API isn't documented; checked on Switch 0.31."""
+    if re.search(r"^SWITCH_ASC_KEY=.+$", ENV.read_text(), re.M):
+        return
+    secrets = LOCAL_SERVER / "native/run/switch-core.env"
+    if not secrets.exists():
+        raise SystemExit(REGISTER_BY_HAND.format("no local server found. In Switch Console choose Run a server on this computer."))
+    cfg = dict(l.split("=", 1) for l in secrets.read_text().splitlines() if "=" in l and not l.startswith("#"))
+    api = re.search(r"^SWITCH_API=(.*)$", ENV.read_text(), re.M).group(1)
+    web = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+    def call(path: str, body: dict | None = None, method: str = "POST"):
+        req = urllib.request.Request(api + "/gateway" + path, method=method, headers={"Content-Type": "application/json"},
+                                     data=None if body is None else json.dumps(body).encode())
+        return json.load(web.open(req, timeout=30))
+
+    try:
+        call("/auth/login", {"email": cfg["GATEWAY_ADMIN_EMAIL"].strip("\"'"), "password": cfg["GATEWAY_ADMIN_PASSWORD"].strip("\"'")})
+        key = call("/api-keys", {"label": "release-room demo"})
+        try:
+            subprocess.run([sys.executable, ROOT / "register_asc.py"], input=key["key"], text=True, check=True)
+        finally:
+            call(f"/api-keys/{key['id']}", method="DELETE")
+    except (OSError, KeyError, ValueError, subprocess.CalledProcessError) as e:
+        raise SystemExit(REGISTER_BY_HAND.format(e))
+
+
+def template_yaml() -> str:
+    y = with_docs((ROOT / "room/template.yaml").read_text())
+    params = f"""params:
+  app: {{type: string, default: DemoCam, input: fixed}}
+  slug: {{type: string, default: democam, input: fixed}}
+  app_id: {{type: string, default: "1000000001", input: fixed}}
+  repo: {{type: string, default: "{REPO}", input: fixed}}
+  checks: {{type: string, default: Hungarian, input: fixed}}
+  chat: {{type: bridge, label: Messaging app, default: [Mattermost, $first]}}
+  machine: {{type: machine, label: Machine, default: [$first]}}
+"""
+    y = re.sub(r"^params:\n(?:  .*\n)+", params, y, flags=re.M)
+    agents = "".join(f"""  {name}_agent:
+    type: agent
+    name: demo-{name}
+    description: "{purpose}"
+    instructions: "Follow CLAUDE.md in your directory. In the demo room you go by @{name}."
+    provider: claude
+    machine: "{{machine}}"
+    directory: "{ROOT / 'agents' / name}"
+""" for name, purpose in AGENTS.items())
+    y = y.replace("resources:\n", "resources:\n" + agents, 1)
+    keys = ", ".join(f"{n}_agent" for n in AGENTS)
+    aliases = ", ".join(f"{n}_agent: {n}" for n in AGENTS)
+    y, count = re.subn(r"agents: \[.*\]", f"agents: [asc, {keys}]\n    aliases: {{{aliases}}}", y)
+    assert count == 1
+    return y
+
+
+def connect() -> None:
+    rooms = [r for r in op("list_all_rooms") if r["name"] == "democam-release" and not r["archived"]]
+    if not rooms:
+        raise SystemExit(f"No democam-release room yet. In Switch Console open Templates, then Use on {TEMPLATE}.")
+    path = ROOT / "rooms.json"
+    listed = json.loads(path.read_text()) if path.exists() else []
+    listed = [r for r in listed if r["app"] != "1000000001"]
+    listed.append({"room_id": rooms[0]["room_id"], "app": "1000000001", "release": "demo-release", "reviews": "demo-reviews"})
+    path.write_text(json.dumps(listed) + "\n")
+    print("@asc now reports into democam-release. Leave this running; Ctrl-C stops it.")
+
+
+if __name__ == "__main__":
+    if "--connect" in sys.argv:
+        connect()
+    else:
+        write_env()
+        write_fixtures()
+        lock([REPO])
+        register_asc()
+        save(TEMPLATE, "The Release Room demo: a fictional app with its agents", template_yaml())
+        print(f"Ready. In Switch Console open Templates, then Use on {TEMPLATE}. Then run: make poster")
