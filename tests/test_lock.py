@@ -2,9 +2,12 @@
 """lock_agents: each agent's rules close what they should and leave open what the agent needs."""
 import pathlib
 import shutil
+import sys
 import tempfile
 
-import lock_agents as lock
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+import lock_agents as lock  # noqa: E402
 
 base = pathlib.Path(tempfile.mkdtemp(dir=pathlib.Path.home()))
 top = base / "projects"

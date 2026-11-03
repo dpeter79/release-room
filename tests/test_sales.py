@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 
-SOURCE = pathlib.Path(__file__).resolve().parent
+SOURCE = pathlib.Path(__file__).resolve().parent.parent
 tmp = pathlib.Path(tempfile.mkdtemp())
 shutil.copytree(SOURCE / "bin", tmp / "bin")
 probe = tmp / "probe"

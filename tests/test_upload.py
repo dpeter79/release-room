@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-SOURCE = pathlib.Path(__file__).resolve().parent
+SOURCE = pathlib.Path(__file__).resolve().parent.parent
 tmp = pathlib.Path(tempfile.mkdtemp())
 root = tmp / "room"
 shutil.copytree(SOURCE / "bin", root / "bin")

@@ -17,9 +17,9 @@ reset:
 	rm -rf state demo/DemoCam
 	python3 demo/setup.py
 test:
-	python3 test_poster.py
-	python3 test_sales.py
-	python3 test_lock.py
-	python3 test_upload.py
+	python3 tests/test_poster.py
+	python3 tests/test_sales.py
+	python3 tests/test_lock.py
+	python3 tests/test_upload.py
 	cd kit && python3 test_asc.py
 .PHONY: help demo poster advance reset test
