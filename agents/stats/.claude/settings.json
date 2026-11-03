@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(../../bin/sales *)",
+      "Bash(../../bin/asc status *)",
+      "Bash(../../bin/asc customer-reviews *)"
+    ],
+    "deny": [
+      "Read(//**/.env)",
+      "Read(//**/*.p8)",
+      "Bash(*.env*)",
+      "Bash(*.p8*)",
+      "Bash(security *)",
+      "Bash(*--apply*)",
+      "Bash(*--state*)",
+      "Bash(*api.appstoreconnect*)",
+      "Edit",
+      "Write",
+      "mcp__appstore-connect",
+      "Bash(*bin/bump*)",
+      "Bash(*bin/upload*)",
+      "Bash(*asc create-version*)",
+      "Bash(*asc attach-build*)",
+      "Bash(*asc whatsnew*)",
+      "Bash(*asc submit*)",
+      "Bash(*asc release*)",
+      "Bash(*asc reply*)",
+      "Bash(*asc.py*)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}

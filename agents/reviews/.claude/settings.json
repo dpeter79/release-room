@@ -1,0 +1,53 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(../../bin/asc customer-reviews *)",
+      "Bash(../../bin/asc status *)",
+      "Bash(git -C * log *)",
+      "Bash(git -C * show *)",
+      "Bash(git -C * grep *)"
+    ],
+    "ask": [
+      "Bash(*bin/asc reply*)",
+      "Bash(*--apply*)"
+    ],
+    "deny": [
+      "Read(//**/.env)",
+      "Read(//**/*.p8)",
+      "Bash(*.env*)",
+      "Bash(*.p8*)",
+      "Bash(security *)",
+      "Bash(*--state*)",
+      "Bash(*asc create-version*)",
+      "Bash(*asc attach-build*)",
+      "Bash(*asc whatsnew*)",
+      "Bash(*asc submit*)",
+      "Bash(*asc release*)",
+      "Bash(*asc.py*)",
+      "Bash(*api.appstoreconnect*)",
+      "Edit",
+      "Write",
+      "mcp__appstore-connect",
+      "Bash(*bin/bump*)",
+      "Bash(*bin/upload*)",
+      "Bash(git -C * restore*)",
+      "Bash(git -C * clean*)",
+      "Bash(git -C * switch*)",
+      "Bash(git -C * merge*)",
+      "Bash(git -C * rebase*)",
+      "Bash(git -C * worktree*)",
+      "Bash(git -C * rm*)",
+      "Bash(git -C * mv*)",
+      "Bash(git -C * add*)",
+      "Bash(git restore*)",
+      "Bash(git clean*)",
+      "Bash(git switch*)",
+      "Bash(git merge*)",
+      "Bash(git rebase*)",
+      "Bash(git worktree*)",
+      "Bash(*--output*)",
+      "Bash(git -C * -c *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}

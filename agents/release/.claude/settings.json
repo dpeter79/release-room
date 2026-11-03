@@ -1,0 +1,59 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(../../bin/asc status *)",
+      "Bash(git -C * log *)",
+      "Bash(git -C * diff *)",
+      "Bash(git -C * show *)"
+    ],
+    "ask": [
+      "Edit",
+      "Write",
+      "Bash(*--apply*)",
+      "Bash(*xcodebuild*)"
+    ],
+    "deny": [
+      "Read(//**/.env)",
+      "Read(//**/*.p8)",
+      "Bash(*.env*)",
+      "Bash(*.p8*)",
+      "Bash(security *)",
+      "Bash(*api.appstoreconnect*)",
+      "Bash(git push*)",
+      "Bash(git -C * push*)",
+      "Bash(git stash*)",
+      "Bash(git -C * stash*)",
+      "Bash(git reset*)",
+      "Bash(git -C * reset*)",
+      "Bash(git checkout*)",
+      "Bash(git -C * checkout*)",
+      "mcp__appstore-connect",
+      "Bash(*--state*)",
+      "Bash(*altool*)",
+      "Bash(git -C * restore*)",
+      "Bash(git -C * clean*)",
+      "Bash(git -C * switch*)",
+      "Bash(git -C * merge*)",
+      "Bash(git -C * rebase*)",
+      "Bash(git -C * worktree*)",
+      "Bash(git -C * rm*)",
+      "Bash(git -C * mv*)",
+      "Bash(git -C * add*)",
+      "Bash(git restore*)",
+      "Bash(git clean*)",
+      "Bash(git switch*)",
+      "Bash(git merge*)",
+      "Bash(git rebase*)",
+      "Bash(git worktree*)",
+      "Bash(*--output*)",
+      "Bash(git -C * -c *)",
+      "Bash(git commit*)",
+      "Bash(git -C * commit*)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "1800000",
+    "BASH_MAX_TIMEOUT_MS": "1800000"
+  }
+}

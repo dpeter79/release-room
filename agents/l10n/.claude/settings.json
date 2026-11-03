@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 */validate.py*)"
+    ],
+    "deny": [
+      "Read(//**/.env)",
+      "Read(//**/*.p8)",
+      "Bash(*.env*)",
+      "Bash(*.p8*)",
+      "Bash(*--apply*)",
+      "Bash(*bin/asc *)",
+      "Bash(git *)",
+      "mcp__appstore-connect",
+      "Bash(*bin/bump*)",
+      "Bash(*bin/upload*)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}
