@@ -120,6 +120,7 @@ These are guard rails for agents doing their job, or misled by what they read. P
 - Apple's API has written reviews only: no star-only ratings and no average.
 - Sales come from daily reports, ready about 17:00 CET, and aren't included in this repo for real apps ([what you need](docs/setup.md#sales-optional)). Impressions and conversion aren't available.
 - It targets Mac apps by default (`--platform` in `kit/asc.py`). `make demo` is Mac-only because of where Console keeps its files.
+- The four agents need Claude Code, because the Allow step and the folder lockdown use its permission rules. Switch itself isn't tied to Claude: `@asc` joins the same rooms as a plain script. Using another agent CLI would mean rebuilding those safeguards for it first.
 
 ## License
 
