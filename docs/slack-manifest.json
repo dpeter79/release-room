@@ -1,0 +1,205 @@
+{
+  "display_information": {
+    "name": "Agent Switch"
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": false,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Agent Switch",
+      "always_online": false
+    },
+    "slash_commands": [
+      {
+        "command": "/help",
+        "description": "Show the list of available in-room commands",
+        "should_escape": false
+      },
+      {
+        "command": "/reset",
+        "description": "Reset a targeted agent's session (clears context, then reconnects)",
+        "usage_hint": "@agent-name | @role (required)",
+        "should_escape": true
+      },
+      {
+        "command": "/reset-all-agents",
+        "description": "Reset EVERY agent's session in this room",
+        "should_escape": false
+      },
+      {
+        "command": "/compact",
+        "description": "Compact a targeted agent's session context",
+        "usage_hint": "@agent-name | @role (required)",
+        "should_escape": true
+      },
+      {
+        "command": "/compact-all-agents",
+        "description": "Compact EVERY agent's session context in this room",
+        "should_escape": false
+      },
+      {
+        "command": "/interrupt",
+        "description": "Interrupt a targeted agent's current turn",
+        "usage_hint": "@agent-name | @role (required)",
+        "should_escape": true
+      },
+      {
+        "command": "/interrupt-all-agents",
+        "description": "Interrupt EVERY agent's current turn in this room",
+        "should_escape": false
+      },
+      {
+        "command": "/agents-status",
+        "description": "Show each agent's presence and capabilities in this room",
+        "should_escape": false
+      },
+      {
+        "command": "/roles",
+        "description": "List this room's roles and who currently holds each",
+        "should_escape": false
+      },
+      {
+        "command": "/list-agents",
+        "description": "List the agents available in this room",
+        "should_escape": false
+      },
+      {
+        "command": "/list-switch-agents",
+        "description": "List all agents registered on the Switch",
+        "should_escape": false
+      },
+      {
+        "command": "/list-documents",
+        "description": "List the room's internal documents",
+        "should_escape": false
+      },
+      {
+        "command": "/list-references",
+        "description": "List the room's references",
+        "should_escape": false
+      },
+      {
+        "command": "/list-aliases",
+        "description": "List per-room agent aliases (@alias to agent)",
+        "should_escape": false
+      },
+      {
+        "command": "/set-alias",
+        "description": "Give an agent a room alias",
+        "usage_hint": "@agent-name @alias",
+        "should_escape": true
+      },
+      {
+        "command": "/remove-alias",
+        "description": "Remove a room alias",
+        "usage_hint": "@alias (or @agent-name)",
+        "should_escape": true
+      },
+      {
+        "command": "/invite-agent",
+        "description": "Add an existing agent to this room",
+        "usage_hint": "@agent-name",
+        "should_escape": true
+      },
+      {
+        "command": "/link-account",
+        "description": "Confirm a link between your chat account and your Switch user",
+        "usage_hint": "CODE",
+        "should_escape": true
+      },
+      {
+        "command": "/unlink-account",
+        "description": "List or remove the Switch users this chat account is linked to",
+        "usage_hint": "[name]",
+        "should_escape": true
+      },
+      {
+        "command": "/rename-agent",
+        "description": "Rename an agent (owner or admin)",
+        "usage_hint": "@agent-name new-name [Display Name]",
+        "should_escape": true
+      },
+      {
+        "command": "/delete-agent",
+        "description": "Delete an agent (owner or admin)",
+        "usage_hint": "@agent-name [confirm]",
+        "should_escape": true
+      },
+      {
+        "command": "/agents-greet",
+        "description": "Have agents in the room introduce themselves",
+        "should_escape": false
+      },
+      {
+        "command": "/room-url",
+        "description": "Show the frontend URL for this room",
+        "should_escape": false
+      },
+      {
+        "command": "/follow-ups",
+        "description": "Turn follow-ups without an @ on or off for this room",
+        "usage_hint": "on | off",
+        "should_escape": false
+      },
+      {
+        "command": "/assign-agent",
+        "description": "Send every message in this room to one agent",
+        "usage_hint": "@agent-name",
+        "should_escape": true
+      },
+      {
+        "command": "/unassign-agent",
+        "description": "Stop sending every message to the assigned agent",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "files:read",
+        "files:write",
+        "channels:history",
+        "channels:manage",
+        "channels:read",
+        "chat:write",
+        "chat:write.customize",
+        "commands",
+        "groups:history",
+        "groups:read",
+        "groups:write",
+        "im:history",
+        "im:read",
+        "im:write",
+        "mpim:history",
+        "reactions:read",
+        "reactions:write",
+        "users:read",
+        "usergroups:read",
+        "usergroups:write"
+      ]
+    },
+    "pkce_enabled": false
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim",
+        "subteam_updated"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false,
+    "is_mcp_enabled": false
+  }
+}
