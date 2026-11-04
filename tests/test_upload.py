@@ -66,6 +66,7 @@ try:
 
     # Translations waiting to be committed go in with the bump, and the dry run says so.
     (repo / "marketing/localization/hu/strings.json").write_text('{"version": {"whatsNew": "Javitas"}}\n')
+    (repo / "marketing/app-review-notes.md").write_text("---\\nNew notes.\\n")
     assert "marketing/localization/hu/strings.json" in run("bump", APP, repo, "1.2.0").stdout
 
     # An app with several targets gets the new number in every Info.plist, and other work is left alone.
@@ -75,7 +76,7 @@ try:
     out = run("bump", APP, repo, "1.2.0", "--apply")
     assert "Committed" in out.stdout, out.stdout + out.stderr
     assert '"1.2.0"' in (repo / "project.yml").read_text() and '"8"' in (repo / "project.yml").read_text()
-    assert set(git("show", "--name-only", "--format=", "HEAD").split()) == {"project.yml", "App/Info.plist", "Ext/Info.plist", "marketing/localization/hu/strings.json"}
+    assert set(git("show", "--name-only", "--format=", "HEAD").split()) == {"project.yml", "App/Info.plist", "Ext/Info.plist", "marketing/app-review-notes.md", "marketing/localization/hu/strings.json"}
     for folder in ("App", "Ext"):
         assert "<string>1.2.0</string>" in (repo / folder / "Info.plist").read_text() and "<string>8</string>" in (repo / folder / "Info.plist").read_text()
     assert "Nothing to do" in run("bump", APP, repo, "1.2.0").stdout

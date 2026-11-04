@@ -32,7 +32,7 @@ sequenceDiagram
 
 | Who | Kind | Job | What it can change |
 | --- | --- | --- | --- |
-| `@release` | Claude Code | Drafts notes, bumps the version, uploads the build, pushes metadata, submits, releases, triages rejections | App Store Connect; through `bin/bump`, the version in `project.yml` and each `Info.plist`, plus a commit of those with the translations; any other file in the app repo, such as a fix after a rejection. Each write needs an Allow |
+| `@release` | Claude Code | Drafts notes, bumps the version, uploads the build, pushes What's New, the description and App Review notes, submits, releases, triages rejections | App Store Connect; through `bin/bump`, the version in `project.yml` and each `Info.plist`, plus a commit of those with the translations; any other file in the app repo, such as a fix after a rejection. Each write needs an Allow |
 | `@l10n` | Claude Code | Translates approved notes into every locale | Only the locale files |
 | `@stats` | Claude Code | Answers questions about sales, downloads, trends and submission status | Nothing |
 | `@reviews` | Claude Code | Shows reviews and drafts replies in the reviewer's language | Only review replies, each after your approval and an Allow |

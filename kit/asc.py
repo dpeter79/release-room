@@ -13,6 +13,8 @@ fake_asc.py's local fake instead of Apple, with no credentials needed.
     asc.py create-version APP 1.0.9 [--apply]
     asc.py attach-build APP 1.0.9 11 [--apply]
     asc.py whatsnew APP 1.0.9 [locale ...] --dir marketing/localization [--apply]
+    asc.py description APP 1.0.9 [locale ...] --dir marketing/localization [--apply]
+    asc.py review-notes APP 1.0.9 --repo PATH [--apply]   # from PATH/marketing/app-review-notes.md
     asc.py submit APP 1.0.9 [--apply]
     asc.py release APP 1.0.9 [--apply]
     asc.py customer-reviews APP [--unanswered] [--state FILE]   # --state: only reviews new since the last run
@@ -34,7 +36,7 @@ import urllib.parse
 import urllib.request
 
 BASE = "https://api.appstoreconnect.apple.com"
-WHATS_NEW_MAX = 4000
+TEXT_MAX = 4000
 # States in which Apple lets a version's metadata and build change.
 EDITABLE = {"PREPARE_FOR_SUBMISSION", "REJECTED", "DEVELOPER_REJECTED", "METADATA_REJECTED"}
 
@@ -206,26 +208,31 @@ def cmd_attach_build(api, a) -> None:
     print(f"{'Attached' if a.apply else 'Would attach'} build {a.build} to {a.version}.")
 
 
-def load_whats_new(folder: pathlib.Path, locales: list[str]) -> dict[str, str]:
-    """<folder>/<locale>/strings.json, one file per App Store locale."""
+def load_text(folder: pathlib.Path, locales: list[str], field: str) -> dict[str, str]:
+    """version.<field> from <folder>/<locale>/strings.json, one file per App Store locale."""
     locales = locales or sorted(p.parent.name for p in folder.glob("*/strings.json"))
     out = {}
     for loc in locales:
-        wn = json.loads((folder / loc / "strings.json").read_text())["version"]["whatsNew"]
-        text = "\n".join(wn) if isinstance(wn, list) else wn
+        value = json.loads((folder / loc / "strings.json").read_text())["version"].get(field) or ""
+        text = "\n".join(value) if isinstance(value, list) else value
         if not text.strip():
-            raise SystemExit(f"{loc}: whatsNew is empty.")
-        if len(text) > WHATS_NEW_MAX:
-            raise SystemExit(f"{loc}: whatsNew is {len(text)} characters, Apple's limit is {WHATS_NEW_MAX}.")
+            raise SystemExit(f"{loc}: {field} is empty.")
+        if len(text) > TEXT_MAX:
+            raise SystemExit(f"{loc}: {field} is {len(text)} characters, Apple's limit is {TEXT_MAX}.")
         out[loc] = text
     return out
 
 
-def cmd_whatsnew(api, a) -> None:
+def editable_version(api, a) -> dict:
     v = find_version(api, a.app, a.platform, a.version)
     if v["state"] not in EDITABLE:
         raise SystemExit(f"Version {a.version} is {v['state']}; its metadata can't change now.")
-    new = load_whats_new(pathlib.Path(a.dir), a.locales)
+    return v
+
+
+def push_text(api, a, field: str) -> None:
+    v = editable_version(api, a)
+    new = load_text(pathlib.Path(a.dir), a.locales, field)
     current = {loc["attributes"]["locale"]: loc for loc in api.call(
         "GET", q(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations", limit=200))["data"]}
     changed = skipped = 0
@@ -234,15 +241,74 @@ def cmd_whatsnew(api, a) -> None:
             print(f"{loc:<8} not on this version, skipped (add the locale in App Store Connect first)")
             skipped += 1
             continue
-        if (current[loc]["attributes"].get("whatsNew") or "") == text:
+        if (current[loc]["attributes"].get(field) or "") == text:
             print(f"{loc:<8} unchanged")
             continue
         print(f"{loc:<8} {len(text):>4} chars  {text.splitlines()[0][:60]}")
         write(api, a.apply, "PATCH", f"/v1/appStoreVersionLocalizations/{current[loc]['id']}", {"data": {
-            "type": "appStoreVersionLocalizations", "id": current[loc]["id"], "attributes": {"whatsNew": text}}})
+            "type": "appStoreVersionLocalizations", "id": current[loc]["id"], "attributes": {field: text}}})
         changed += 1
     print(f"\n{changed} locale(s) {'updated' if a.apply else 'to update'}, {skipped} skipped, "
           f"{len(current)} on the version.")
+
+
+def cmd_whatsnew(api, a) -> None:
+    push_text(api, a, "whatsNew")
+
+
+def cmd_description(api, a) -> None:
+    """A changed English description must reach every language, so a missed translation can't ship."""
+    v = editable_version(api, a)
+    new = load_text(pathlib.Path(a.dir), a.locales, "description")
+    current = {loc["attributes"]["locale"]: loc["attributes"].get("description") or "" for loc in api.call(
+        "GET", q(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations", limit=200))["data"]}
+    if "en-US" in new and new["en-US"] != current.get("en-US"):
+        missed = [loc for loc, text in new.items() if loc != "en-US" and loc in current and current[loc] == text]
+        if missed:
+            raise SystemExit(f"The English description changed, but these translations didn't: {', '.join(missed)}. "
+                             "Ask @l10n to translate them. Nothing changed.")
+    push_text(api, a, "description")
+
+
+def load_review_notes(repo: pathlib.Path) -> str | None:
+    """The notes sit between the file's first two --- lines, or after the first if there's only one.
+
+    A fixed file name, not a path argument: this command runs outside the agents' sandbox and prints what it reads.
+    """
+    path = repo / "marketing/app-review-notes.md"
+    if not path.is_file():
+        return None
+    parts = re.split(r"^---[ \t]*$", path.read_text(), flags=re.M)
+    notes = (parts[1] if len(parts) > 1 else parts[0]).strip()
+    if not notes:
+        raise SystemExit(f"{path} has no notes.")
+    if len(notes) > TEXT_MAX:
+        raise SystemExit(f"The notes are {len(notes)} characters, Apple's limit is {TEXT_MAX}.")
+    return notes
+
+
+def cmd_review_notes(api, a) -> None:
+    v = editable_version(api, a)
+    notes = load_review_notes(pathlib.Path(a.repo))
+    detail = api.call("GET", f"/v1/appStoreVersions/{v['id']}/appStoreReviewDetail").get("data")
+    if notes is None:
+        if a.apply:
+            raise SystemExit("There's no marketing/app-review-notes.md to send. Nothing changed.")
+        on_apple = (detail or {}).get("attributes", {}).get("notes")
+        print("No marketing/app-review-notes.md in this repo yet. Nothing to send.")
+        print(f"Notes on Apple now:\n{on_apple}" if on_apple else "This version has no notes on Apple either.")
+        return
+    if detail and (detail["attributes"].get("notes") or "") == notes:
+        print("Review notes unchanged. 0 to update.")
+        return
+    if detail:
+        write(api, a.apply, "PATCH", f"/v1/appStoreReviewDetails/{detail['id']}", {"data": {
+            "type": "appStoreReviewDetails", "id": detail["id"], "attributes": {"notes": notes}}})
+    else:
+        write(api, a.apply, "POST", "/v1/appStoreReviewDetails", {"data": {
+            "type": "appStoreReviewDetails", "attributes": {"notes": notes},
+            "relationships": {"appStoreVersion": {"data": rel("appStoreVersions", v["id"])["data"]}}}})
+    print(f"Review notes {'updated' if a.apply else 'to update'}: {len(notes)} characters.")
 
 
 def cmd_submit(api, a) -> None:
@@ -337,6 +403,10 @@ def main(argv: list[str] | None = None) -> None:
     p = add("whatsnew", cmd_whatsnew, "version")
     p.add_argument("--dir", required=True, help="folder with <locale>/strings.json")
     p.add_argument("locales", nargs="*")
+    p = add("description", cmd_description, "version")
+    p.add_argument("--dir", required=True, help="folder with <locale>/strings.json")
+    p.add_argument("locales", nargs="*")
+    add("review-notes", cmd_review_notes, "version").add_argument("--repo", required=True, help="the app's repo")
     add("submit", cmd_submit, "version")
     add("release", cmd_release, "version")
     p = add("customer-reviews", cmd_customer_reviews, apply=False)

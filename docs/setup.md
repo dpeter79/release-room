@@ -49,7 +49,7 @@ python3 save_template.py
 
 In Console open **Templates**, then **Use** on `app-release-room`, and fill in the app's name, room prefix, App Store Connect id, repo path and the language you'll check. Repeat for each app.
 
-The repo should have `marketing/localization/<locale>/strings.json`, with the release notes in `version.whatsNew` (a string, or a list of lines). A locale must already exist on the version in App Store Connect, or `whatsnew` skips it and says so.
+The repo should have `marketing/localization/<locale>/strings.json`, with the release notes in `version.whatsNew` and the App Store description in `version.description` (a string, or a list of lines). A locale must already exist on the version in App Store Connect, or `whatsnew` skips it and says so.
 
 ## 6. Start `@asc`
 
@@ -65,7 +65,7 @@ One room per app. Then run `python3 asc_poster.py` somewhere it can stay running
 
 `@release` can make a build from the room, after an Allow for each step, if your app is a Mac app using [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
-- `bin/bump APP_ID REPO VERSION --apply` sets the version in `project.yml` and every `Info.plist` it names, picks the next free build number, and commits those files with any new translations. It leaves everything else alone.
+- `bin/bump APP_ID REPO VERSION --apply` sets the version in `project.yml` and every `Info.plist` it names, picks the next free build number, and commits those files with any new translations and App Review notes. It leaves everything else alone.
 - `bin/upload APP_ID REPO --apply` generates the project, archives, exports and uploads, and can take up to 15 minutes. It refuses if the repo has uncommitted changes, so a build always matches committed code. Commit your own work first.
 
 You need `xcodegen` installed, and your signing set up: build the app once in Xcode, so a provisioning profile is cached. The scheme must match `name:` in `project.yml`. Your API key must be in `~/.appstoreconnect/private_keys`. For anything else, upload from Xcode, and `@asc` reports the build when it's ready.

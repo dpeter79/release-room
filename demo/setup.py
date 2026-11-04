@@ -64,6 +64,7 @@ def write_fixtures() -> None:
         shutil.rmtree(REPO, ignore_errors=True)
         subprocess.run(["sh", ROOT / "kit/fixtures/make-demo-repo.sh", REPO], check=True)
         shutil.copytree(ROOT / "kit/fixtures/demo-locales", REPO / "marketing/localization")
+        shutil.copy(ROOT / "kit/fixtures/demo-review-notes.md", REPO / "marketing/app-review-notes.md")
 
 
 def register_asc() -> None:

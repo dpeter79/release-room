@@ -1,1 +1,11 @@
-{"version": {"whatsNew": ["Webkamera csatlakoztatásakor a kameralista azonnal frissül.", "Ha a DemoCam másik kamerára váltott, visszavált a tiédre."]}}
+{
+  "version": {
+    "whatsNew": [
+      "Webkamera csatlakoztatásakor a kameralista azonnal frissül.",
+      "Ha a DemoCam másik kamerára váltott, visszavált a tiédre."
+    ],
+    "description": [
+      "DemoCam is a fictional Mac virtual camera."
+    ]
+  }
+}

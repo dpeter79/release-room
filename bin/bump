@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Sets a new version with the next free build number, and commits it together with the translations.
+"""Sets a new version with the next free build number, and commits it together with the release text.
 
     bin/bump APP_ID REPO VERSION [--apply]      # a dry run without --apply
 
 Changes project.yml and every Info.plist it names. The commit holds only those files and any changed
-marketing/localization/*/strings.json, and the dry run lists them, so other unfinished work is left alone.
+marketing/localization/*/strings.json and marketing/app-review-notes.md, and the dry run lists them, so other unfinished work is left alone.
 """
 from __future__ import annotations
 
@@ -50,8 +50,8 @@ def main() -> None:
     changing = ["project.yml", *plists]
     if git(a.repo, "status", "--porcelain", "--", *changing).strip():
         raise SystemExit(f"These have uncommitted changes: {', '.join(changing)}. Commit them first, so this commit holds only the bump.")
-    notes = [line[3:] for line in git(a.repo, "status", "--porcelain", "--untracked-files=all", "--", "marketing/localization").splitlines()
-             if line.endswith("/strings.json")]
+    notes = [line[3:] for line in git(a.repo, "status", "--porcelain", "--untracked-files=all", "--", "marketing/localization", "marketing/app-review-notes.md").splitlines()
+             if line.endswith(("/strings.json", "app-review-notes.md"))]
 
     number = max([int(build)] + [int(b["build"]) for b in builds if b["build"].isdigit()]) + 1
     print(f"{'Bumping' if a.apply else 'Would bump'} {current} ({build}) to {a.version} ({number}), and commit:",
@@ -70,7 +70,7 @@ def main() -> None:
     try:
         if notes:
             git(a.repo, "add", "--", *notes)
-        message = f"Bump to {a.version} ({number})" + (" with release notes" if notes else "")
+        message = f"Bump to {a.version} ({number})" + (" with release text" if notes else "")
         git(a.repo, "commit", "-m", message, "--", *changing, *notes)
     except subprocess.CalledProcessError as e:
         for name, original in originals.items():

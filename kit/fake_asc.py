@@ -87,7 +87,7 @@ class Fake:
 
         if method == "GET" and (m := re.fullmatch(r"/v1/appStoreVersions/([\w-]+)/appStoreVersionLocalizations", p)):
             return {"data": [{"type": "appStoreVersionLocalizations", "id": loc["id"],
-                              "attributes": {"locale": loc["locale"], "whatsNew": loc["whatsNew"]}}
+                              "attributes": {"locale": loc["locale"], "whatsNew": loc["whatsNew"], "description": loc.get("description")}}
                              for loc in self.s["localizations"] if loc["version"] == m[1]]}
 
         if method == "GET" and (m := re.fullmatch(r"/v1/apps/(\w+)/customerReviews", p)):
@@ -123,8 +123,11 @@ class Fake:
             if prev:
                 last = max(prev, key=lambda x: x["created"])["id"]
                 self.s["localizations"] += [{"id": str(uuid.uuid4()), "version": v["id"], "locale": loc["locale"],
-                                             "whatsNew": loc["whatsNew"]}
+                                             "whatsNew": loc["whatsNew"], "description": loc.get("description")}
                                             for loc in self.s["localizations"] if loc["version"] == last]
+                self.s.setdefault("review_details", []).extend(
+                    [{"id": str(uuid.uuid4()), "version": v["id"], "notes": d["notes"]}
+                     for d in self.s.get("review_details", []) if d["version"] == last])
             self.s["versions"].append(v)
             self.save()
             return {"data": self._v(v)}
@@ -135,7 +138,22 @@ class Fake:
             return {}
 
         if method == "PATCH" and (m := re.fullmatch(r"/v1/appStoreVersionLocalizations/([\w-]+)", p)):
-            next(loc for loc in self.s["localizations"] if loc["id"] == m[1])["whatsNew"] = data["attributes"]["whatsNew"]
+            next(loc for loc in self.s["localizations"] if loc["id"] == m[1]).update(data["attributes"])
+            self.save()
+            return {}
+
+        if method == "GET" and (m := re.fullmatch(r"/v1/appStoreVersions/([\w-]+)/appStoreReviewDetail", p)):
+            d = next((x for x in self.s.get("review_details", []) if x["version"] == m[1]), None)
+            return {"data": {"type": "appStoreReviewDetails", "id": d["id"], "attributes": {"notes": d["notes"]}} if d else None}
+
+        if method == "POST" and p == "/v1/appStoreReviewDetails":
+            vid = data["relationships"]["appStoreVersion"]["data"]["id"]
+            self.s.setdefault("review_details", []).append({"id": str(uuid.uuid4()), "version": vid, "notes": data["attributes"]["notes"]})
+            self.save()
+            return {}
+
+        if method == "PATCH" and (m := re.fullmatch(r"/v1/appStoreReviewDetails/([\w-]+)", p)):
+            next(d for d in self.s["review_details"] if d["id"] == m[1])["notes"] = data["attributes"]["notes"]
             self.save()
             return {}
 

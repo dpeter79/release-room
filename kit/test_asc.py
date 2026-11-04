@@ -60,6 +60,47 @@ def main() -> None:
     out = run(state, "whatsnew", APP, "1.1.0", "--dir", locales, "--apply")
     assert "4 locale(s) updated" in out, out
     assert "unchanged" in run(state, "whatsnew", APP, "1.1.0", "hu", "--dir", locales)
+    assert "4 locale(s) updated" in run(state, "description", APP, "1.1.0", "--dir", locales, "--apply")
+    assert "0 locale(s) to update" in run(state, "description", APP, "1.1.0", "--dir", locales)
+
+    with tempfile.TemporaryDirectory() as partial:
+        copy = pathlib.Path(partial) / "locales"
+        shutil.copytree(locales, copy)
+        english = json.loads((copy / "en-US/strings.json").read_text())
+        english["version"]["description"] = ["A new function."]
+        (copy / "en-US/strings.json").write_text(json.dumps(english))
+        try:
+            run(state, "description", APP, "1.1.0", "--dir", str(copy), "--apply")
+            raise AssertionError("a description missing its translations wasn't refused")
+        except SystemExit as e:
+            assert "translations didn't" in str(e) and "hu" in str(e), e
+
+    with tempfile.TemporaryDirectory() as notes_repo:
+        assert "no notes on Apple" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+        try:
+            run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo, "--apply")
+            raise AssertionError("--apply with no notes file wasn't refused")
+        except SystemExit as e:
+            assert "Nothing changed" in str(e), e
+        notes = pathlib.Path(notes_repo) / "marketing/app-review-notes.md"
+        notes.parent.mkdir()
+        notes.write_text("# Heading\n\n---\n\nThe notes.\n\n---\n\nOur own changelog.\n")
+        assert "to update" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+        assert not json.loads(pathlib.Path(state).read_text()).get("review_details"), "a dry run must not write"
+        run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo, "--apply")
+        assert [d["notes"] for d in json.loads(pathlib.Path(state).read_text())["review_details"]] == ["The notes."]
+        assert "0 to update" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+        notes.write_text("x" * 4001)
+        try:
+            run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+            raise AssertionError("over-long notes weren't refused")
+        except SystemExit as e:
+            assert "limit" in str(e), e
+        notes.write_text("---\nChanged.\n---\n")
+        run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo, "--apply")
+        assert [d["notes"] for d in json.loads(pathlib.Path(state).read_text())["review_details"]] == ["Changed."]
+        notes.unlink()
+        assert "Changed." in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
 
     run(state, "submit", APP, "1.1.0", "--apply")
     assert version_state(state, "1.1.0") == "WAITING_FOR_REVIEW"

@@ -1,1 +1,11 @@
-{"version": {"whatsNew": ["ウェブカメラを接続すると、カメラリストがすぐに更新されます。", "DemoCam が別のカメラに切り替わっていた場合は、元のカメラに戻ります。"]}}
+{
+  "version": {
+    "whatsNew": [
+      "ウェブカメラを接続すると、カメラリストがすぐに更新されます。",
+      "DemoCam が別のカメラに切り替わっていた場合は、元のカメラに戻ります。"
+    ],
+    "description": [
+      "DemoCam is a fictional Mac virtual camera."
+    ]
+  }
+}
