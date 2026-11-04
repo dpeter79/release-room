@@ -101,14 +101,15 @@ def template_yaml() -> str:
   checks: {{type: string, default: Hungarian, input: fixed}}
   chat: {{type: bridge, label: Messaging app, default: [Mattermost, $first]}}
   machine: {{type: machine, label: Machine, default: [$first]}}
+  provider: {{type: provider, description: "The first one ready is chosen. Only Claude Code has the Allow step and the folder lockdown.", default: [claude, codex, opencode, cursor, antigravity], input: advanced}}
 """
     y = re.sub(r"^params:\n(?:  .*\n)+", params, y, flags=re.M)
     agents = "".join(f"""  {name}_agent:
     type: agent
     name: demo-{name}
     description: "{purpose}"
-    instructions: "Follow CLAUDE.md in your directory. In the demo room you go by @{name}."
-    provider: claude
+    instructions: "Follow AGENTS.md in your directory. In the demo room you go by @{name}."
+    provider: "{{provider}}"
     machine: "{{machine}}"
     directory: "{ROOT / 'agents' / name}"
 """ for name, purpose in AGENTS.items())

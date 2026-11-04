@@ -45,7 +45,7 @@ sequenceDiagram
 | --- | --- | --- |
 | One room per app, with its agents and instructions | Room template | [`room/template.yaml`](room/template.yaml) |
 | Checklist, Apple's limits, past rejections, approved notes | Room documents | [`room/docs/`](room/docs/), embedded by [`save_template.py`](save_template.py) |
-| Agents hand work to each other | A mention starts the addressed agent's turn | [`agents/*/CLAUDE.md`](agents/release/CLAUDE.md) |
+| Agents hand work to each other | A mention starts the addressed agent's turn | [`agents/*/AGENTS.md`](agents/release/AGENTS.md) |
 | Every write to Apple | Claude Code `ask` rules, posted in the room as Allow / Decline by Auto mode | [`agents/release/.claude/settings.json`](agents/release/.claude/settings.json) |
 | App Store Connect reports changes and reviews | Agent protocol: `POST /agents/{id}/message` | [`asc_poster.py`](asc_poster.py), [`register_asc.py`](register_asc.py) |
 | Demo setup and room lookup | Operations API: `/agents/{id}/ops` | [`switch_op.py`](switch_op.py) |
@@ -120,7 +120,7 @@ These are guard rails for agents doing their job, or misled by what they read. P
 - Apple's API has written reviews only: no star-only ratings and no average.
 - Sales come from daily reports, ready about 17:00 CET, and aren't included in this repo for real apps ([what you need](docs/setup.md#sales-optional)). Impressions and conversion aren't available.
 - It targets Mac apps by default (`--platform` in `kit/asc.py`). `make demo` is Mac-only because of where Console keeps its files.
-- The four agents need Claude Code, because the Allow step and the folder lockdown use its permission rules. Switch itself isn't tied to Claude: `@asc` joins the same rooms as a plain script. Using another agent CLI would mean rebuilding those safeguards for it first.
+- It's only tested with Claude Code. The instructions are plain `AGENTS.md` files and the scripts don't depend on any agent, so the demo template should also run on Codex, OpenCode, Cursor or Antigravity (Provider, under Advanced). But the Allow step and the folder lockdown are Claude Code rules: another CLI has neither until you set up its own, so keep it to the fake.
 
 ## License
 

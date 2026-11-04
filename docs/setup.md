@@ -21,7 +21,7 @@ In Console open **Your Agents**, then the dashed card, once per agent. The names
 | `stats` | `<this repo>/agents/stats` |
 | `reviews` | `<this repo>/agents/reviews` |
 
-Leave Agent instructions empty, because each agent reads the `CLAUDE.md` in its folder. Then open Claude Code once in this repo and accept the trust dialog: an untrusted folder's allow rules are ignored.
+Leave Agent instructions empty, because each agent reads the `AGENTS.md` in its folder, which Claude Code gets through a one-line `CLAUDE.md`. Then open Claude Code once in this repo and accept the trust dialog: an untrusted folder's allow rules are ignored.
 
 ## 3. Register `@asc`
 
