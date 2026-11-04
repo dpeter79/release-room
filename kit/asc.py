@@ -13,7 +13,8 @@ fake_asc.py's local fake instead of Apple, with no credentials needed.
     asc.py create-version APP 1.0.9 [--apply]
     asc.py attach-build APP 1.0.9 11 [--apply]
     asc.py whatsnew APP 1.0.9 [locale ...] --dir marketing/localization [--apply]
-    asc.py description APP 1.0.9 [locale ...] --dir marketing/localization [--apply]
+    asc.py description APP 1.0.9 [locale ...] --dir marketing/localization [--source en-US] [--apply]
+    asc.py pull-text APP --repo PATH [--apply]            # starts marketing/localization from Apple's newest version
     asc.py review-notes APP 1.0.9 --repo PATH [--apply]   # from PATH/marketing/app-review-notes.md
     asc.py submit APP 1.0.9 [--apply]
     asc.py release APP 1.0.9 [--apply]
@@ -211,6 +212,8 @@ def cmd_attach_build(api, a) -> None:
 def load_text(folder: pathlib.Path, locales: list[str], field: str) -> dict[str, str]:
     """version.<field> from <folder>/<locale>/strings.json, one file per App Store locale."""
     locales = locales or sorted(p.parent.name for p in folder.glob("*/strings.json"))
+    if not locales:
+        raise SystemExit(f"No <locale>/strings.json in {folder}. Run pull-text to start them from Apple's newest version.")
     out = {}
     for loc in locales:
         value = json.loads((folder / loc / "strings.json").read_text())["version"].get(field) or ""
@@ -257,17 +260,45 @@ def cmd_whatsnew(api, a) -> None:
 
 
 def cmd_description(api, a) -> None:
-    """A changed English description must reach every language, so a missed translation can't ship."""
+    """A changed source description must reach every language, so a missed translation can't ship."""
     v = editable_version(api, a)
     new = load_text(pathlib.Path(a.dir), a.locales, "description")
     current = {loc["attributes"]["locale"]: loc["attributes"].get("description") or "" for loc in api.call(
         "GET", q(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations", limit=200))["data"]}
-    if "en-US" in new and new["en-US"] != current.get("en-US"):
-        missed = [loc for loc, text in new.items() if loc != "en-US" and loc in current and current[loc] == text]
+    if not a.locales and a.source not in new:
+        raise SystemExit(f"The source language {a.source} isn't in {a.dir}. Name the right one with --source.")
+    if a.source in new and new[a.source] != current.get(a.source):
+        missed = [loc for loc, text in new.items() if loc != a.source and loc in current and current[loc] == text]
         if missed:
-            raise SystemExit(f"The English description changed, but these translations didn't: {', '.join(missed)}. "
+            raise SystemExit(f"The {a.source} description changed, but these translations didn't: {', '.join(missed)}. "
                              "Ask @l10n to translate them. Nothing changed.")
     push_text(api, a, "description")
+
+
+def cmd_pull_text(api, a) -> None:
+    """Starts a repo's language files from what's on Apple. Never overwrites a file."""
+    vs = versions(api, a.app, a.platform)
+    if not vs:
+        raise SystemExit(f"App {a.app} has no {a.platform} version on Apple to copy from.")
+    newest = max(vs, key=lambda v: v["created"] or "")
+    folder = pathlib.Path(a.repo) / "marketing/localization"
+    added = 0
+    for loc in api.call("GET", q(f"/v1/appStoreVersions/{newest['id']}/appStoreVersionLocalizations", limit=200))["data"]:
+        locale = loc["attributes"]["locale"]
+        if not re.fullmatch(r"[A-Za-z]+(-[A-Za-z0-9]+)*", locale):
+            raise SystemExit(f"Apple returned an odd locale name, {locale!r}. Nothing more was written.")
+        path = folder / locale / "strings.json"
+        if path.exists():
+            print(f"{locale:<8} already there, left alone")
+            continue
+        added += 1
+        print(f"{locale:<8} {'wrote' if a.apply else 'would write'} {path}")
+        if a.apply:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"locale": locale, "version": {
+                "description": loc["attributes"].get("description") or "",
+                "whatsNew": loc["attributes"].get("whatsNew") or ""}}, ensure_ascii=False, indent=2) + "\n")
+    print(f"\n{added} language file(s) {'written' if a.apply else 'to write'}, from version {newest['version']}.")
 
 
 def load_review_notes(repo: pathlib.Path) -> str | None:
@@ -317,6 +348,11 @@ def cmd_submit(api, a) -> None:
         raise SystemExit(f"Version {a.version} is {v['state']}; it can't be submitted now.")
     if not api.call("GET", f"/v1/appStoreVersions/{v['id']}/build").get("data"):
         raise SystemExit(f"Version {a.version} has no build attached. Run attach-build first.")
+    # A first version has no What's New; an update can't go out without one.
+    if len(versions(api, a.app, a.platform)) > 1 and not any(
+            (loc["attributes"].get("whatsNew") or "").strip() for loc in api.call(
+                "GET", q(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations", limit=200))["data"]):
+        raise SystemExit(f"Version {a.version} has no What's New in any language. Run whatsnew first.")
     # Apple allows one open submission per platform; reuse it rather than fail on a second.
     open_ = [r for r in reviews(api, a.app, a.platform) if r["state"] in ("READY_FOR_REVIEW", "UNRESOLVED_ISSUES")]
     if open_:
@@ -405,7 +441,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("locales", nargs="*")
     p = add("description", cmd_description, "version")
     p.add_argument("--dir", required=True, help="folder with <locale>/strings.json")
+    p.add_argument("--source", default="en-US", help="the language the description is written in first")
     p.add_argument("locales", nargs="*")
+    add("pull-text", cmd_pull_text).add_argument("--repo", required=True, help="the app's repo")
     add("review-notes", cmd_review_notes, "version").add_argument("--repo", required=True, help="the app's repo")
     add("submit", cmd_submit, "version")
     add("release", cmd_release, "version")

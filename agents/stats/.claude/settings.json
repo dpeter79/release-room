@@ -23,6 +23,7 @@
       "Bash(*asc attach-build*)",
       "Bash(*asc whatsnew*)",
       "Bash(*asc description*)",
+      "Bash(*asc pull-text*)",
       "Bash(*asc review-notes*)",
       "Bash(*asc submit*)",
       "Bash(*asc release*)",

@@ -102,6 +102,7 @@ def template_yaml() -> str:
   app_id: {{type: string, default: "1000000001", input: fixed}}
   repo: {{type: string, default: "{REPO}", input: fixed}}
   checks: {{type: string, default: Hungarian, input: fixed}}
+  source: {{type: string, default: en-US, input: fixed}}
   chat: {{type: bridge, label: Messaging app, default: [Mattermost, $first]}}
   machine: {{type: machine, label: Machine, default: [$first]}}
   provider: {{type: provider, description: "The first one ready is chosen. Only Claude Code has the Allow step and the folder lockdown.", default: [claude, codex, opencode, cursor, antigravity], input: advanced}}

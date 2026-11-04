@@ -6,6 +6,7 @@ params:
   app_id: {type: string, label: App Store Connect id, description: "The number in the app's App Store Connect address", pattern: "[0-9]+"}
   repo: {type: string, label: Repo path, description: "Path to the app's repo on this Mac"}
   checks: {type: string, label: Language you check, default: Hungarian, description: "The translation a person reads before anything is pushed"}
+  source: {type: string, label: Source language, default: en-US, description: "The App Store locale your description is written in first, such as en-US"}
   chat: {type: bridge, label: Messaging app, default: [Slack, $first]}
 resources:
   release_room:
@@ -17,7 +18,7 @@ resources:
     agents: [asc, release, l10n, stats, reviews]
     users: ["{$creator}"]
     instructions: |
-      This room ships {app} to the Mac App Store. App Store Connect id: {app_id}. Repo: {repo}. Localization folder: {repo}/marketing/localization. The person checks the {checks} translation.
+      This room ships {app} to the Mac App Store. App Store Connect id: {app_id}. Repo: {repo}. Localization folder: {repo}/marketing/localization. Source language of the App Store text: {source}. The person checks the {checks} translation.
 
       Who does what:
       - @release owns the checklist, drafts notes, attaches builds, pushes metadata, submits, releases and triages rejections.

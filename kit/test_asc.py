@@ -63,6 +63,44 @@ def main() -> None:
     assert "4 locale(s) updated" in run(state, "description", APP, "1.1.0", "--dir", locales, "--apply")
     assert "0 locale(s) to update" in run(state, "description", APP, "1.1.0", "--dir", locales)
 
+    # no language files or notes yet: refused with directions, then started from Apple
+    with tempfile.TemporaryDirectory() as bare:
+        folder = pathlib.Path(bare) / "marketing/localization"
+        for cmd in ("whatsnew", "description"):
+            try:
+                run(state, cmd, APP, "1.1.0", "--dir", str(folder), "--apply")
+                raise AssertionError(f"{cmd} with no language files wasn't refused")
+            except SystemExit as e:
+                assert "pull-text" in str(e), e
+        assert "4 language file(s) to write" in run(state, "pull-text", APP, "--repo", bare)
+        assert not folder.exists(), "a dry run must not write"
+        run(state, "pull-text", APP, "--repo", bare, "--apply")
+        pulled = json.loads((folder / "en-US/strings.json").read_text())["version"]
+        assert pulled["description"] == ["DemoCam is a fictional Mac virtual camera."] or pulled["description"], pulled
+        assert "0 locale(s) to update" in run(state, "description", APP, "1.1.0", "--dir", str(folder))
+        (folder / "hu/strings.json").write_text('{"version": {"whatsNew": "mine", "description": "mine"}}')
+        assert "already there" in run(state, "pull-text", APP, "--repo", bare, "--apply")
+        assert "mine" in (folder / "hu/strings.json").read_text(), "pull-text must not overwrite"
+        saved = pathlib.Path(state).read_text()
+        odd = json.loads(saved)
+        for loc in odd["localizations"]:
+            loc["locale"] = "../evil"
+        pathlib.Path(state).write_text(json.dumps(odd))
+        try:
+            run(state, "pull-text", APP, "--repo", bare, "--apply")
+            raise AssertionError("an odd locale name wasn't refused")
+        except SystemExit as e:
+            assert "odd locale" in str(e), e
+        for loc in odd["localizations"]:
+            loc["locale"], loc["whatsNew"] = "hu", ""
+        pathlib.Path(state).write_text(json.dumps(odd))
+        try:
+            run(state, "submit", APP, "1.1.0", "--apply")
+            raise AssertionError("a version with no What's New was submitted")
+        except SystemExit as e:
+            assert "no What's New" in str(e), e
+        pathlib.Path(state).write_text(saved)
+
     with tempfile.TemporaryDirectory() as partial:
         copy = pathlib.Path(partial) / "locales"
         shutil.copytree(locales, copy)
@@ -74,6 +112,20 @@ def main() -> None:
             raise AssertionError("a description missing its translations wasn't refused")
         except SystemExit as e:
             assert "translations didn't" in str(e) and "hu" in str(e), e
+        hungarian = json.loads((copy / "hu/strings.json").read_text())
+        hungarian["version"]["description"] = ["Uj funkcio."]
+        (copy / "hu/strings.json").write_text(json.dumps(hungarian))
+        (copy / "en-US/strings.json").write_text((pathlib.Path(locales) / "en-US/strings.json").read_text())
+        try:
+            run(state, "description", APP, "1.1.0", "--dir", str(copy), "--source", "hu", "--apply")
+            raise AssertionError("another source language wasn't checked")
+        except SystemExit as e:
+            assert "The hu description" in str(e) and "en-US" in str(e), e
+        try:
+            run(state, "description", APP, "1.1.0", "--dir", str(copy), "--source", "fr-FR")
+            raise AssertionError("a missing source language wasn't refused")
+        except SystemExit as e:
+            assert "isn't in" in str(e), e
 
     with tempfile.TemporaryDirectory() as notes_repo:
         assert "no notes on Apple" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)

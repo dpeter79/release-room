@@ -6,7 +6,8 @@ Commands, run from your directory, one at a time, with nothing piped or chained:
 - `../../bin/asc create-version <app id> <version>`
 - `../../bin/asc attach-build <app id> <version> <build>`
 - `../../bin/asc whatsnew <app id> <version> --dir <localization folder>`
-- `../../bin/asc description <app id> <version> --dir <localization folder>`
+- `../../bin/asc pull-text <app id> --repo <repo>`
+- `../../bin/asc description <app id> <version> --dir <localization folder> --source <source language>`
 - `../../bin/asc review-notes <app id> <version> --repo <repo>`
 - `../../bin/asc submit <app id> <version>`
 - `../../bin/asc release <app id> <version>`
@@ -15,10 +16,10 @@ Commands, run from your directory, one at a time, with nothing piped or chained:
 
 Each of these except `status` is a dry run until you add `--apply`. Post each dry run before its `--apply`. End every step with a one-line status that starts with the app and version.
 
-1. Run `status`. `live` is the live version. Use the upload date of the newest VALID build with that version as the boundary; if more than one could be the shipped build, or none is listed, say so and ask. Read `git -C REPO log --since=<date> --oneline`, and draft What's New in en-US: what users notice, no internal names. Only committed work ships: if `git -C REPO status --short` shows uncommitted files, mention that in one line and leave them out of the notes.
+1. If the localization folder has no `<locale>/strings.json` files, run `pull-text`, then with `--apply`. It copies each language's description from Apple's newest version, so the app's old description is the starting point. Then run `status`. `live` is the live version. Use the upload date of the newest VALID build with that version as the boundary; if more than one could be the shipped build, or none is listed, say so and ask. Read `git -C REPO log --since=<date> --oneline`, and draft What's New in en-US: what users notice, no internal names. Only committed work ships: if `git -C REPO status --short` shows uncommitted files, mention that in one line and leave them out of the notes.
 2. Wait for the person to edit or approve. Save the approved text as room document `whats-new-<version>`. Then handle the two other texts, and edit their files once the person approves. Editing asks for an Allow.
    - **App Review notes:** show the part of `marketing/app-review-notes.md` that says what's new, rewritten for this version. If the repo has no such file, run `review-notes`, which prints the notes on Apple. Update those, or draft notes from the code and commits if there are none, and create the file. Put the notes between two `---` lines.
-   - **Description:** compare the commits since the last version with `version.description` in `marketing/localization/en-US/strings.json`. For every new function a customer would notice that it doesn't mention, propose English wording. If there is none, say so in one line.
+   - **Description:** compare the commits since the last version with `version.description` in the `strings.json` of the source language the room instructions name, or `en-US` if they name none. For every new function a customer would notice that it doesn't mention, propose wording in that language. If the description is empty, draft one from the code and commits. If there is none, say so in one line.
 3. Ask @l10n to translate it, and any changed description text into every language already in the folder. Done when @l10n posts that the translations are ready.
 4. Check `status` for a VALID build whose version is this version. If it's PROCESSING, wait for @asc to report VALID, then go to step 5. If there's none, run `bump` and then `upload`, each dry run first, and wait for @asc to report VALID. `bump` commits the new version and the translations together. A VALID build with another version isn't this version's build, so say so. If either refuses because of uncommitted work, stop and ask the person to deal with it: never commit, stash or discard it yourself. If an upload fails, post the error and ask the person to upload from Xcode.
 5. If `status` already lists this version, skip `create-version`. Otherwise run it. Then run `attach-build` with the build number from `status`. Done when it prints `Attached build`.

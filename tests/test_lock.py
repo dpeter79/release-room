@@ -45,6 +45,9 @@ try:
     assert s["enabled"] and s["failIfUnavailable"] and not s["allowUnsandboxedCommands"] and not s["autoAllowBashIfSandboxed"]
     assert s["filesystem"]["denyRead"] == ["~/"] and s["filesystem"]["denyWrite"] == [str(app)]
     assert not any(str(root) == a for a in s["filesystem"]["allowRead"])  # the repo root holds .env
+    fresh = far / "no-marketing-yet"
+    fresh.mkdir(exist_ok=True)
+    assert f"Edit({lock.rule_path(fresh)}/marketing/localization/*/strings.json)" in lock.settings("l10n", [fresh])["permissions"]["allow"], "a folder made later must open"
     assert lock.rule_path(pathlib.Path("/opt/x")) == "//opt/x"  # outside home still works
     assert lock.settings("l10n", [far])["permissions"]["additionalDirectories"] == [str(far / "marketing/localization")]
     print("ok: stats sees no app repo, release sees it whole, l10n only its folder, .env stays closed")

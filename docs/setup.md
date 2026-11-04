@@ -47,9 +47,49 @@ Check `room/docs/do-not-localize.md` for any other names you want kept as writte
 python3 save_template.py
 ```
 
-In Console open **Templates**, then **Use** on `app-release-room`, and fill in the app's name, room prefix, App Store Connect id, repo path and the language you'll check. Repeat for each app.
+In Console open **Templates**, then **Use** on `app-release-room`, and fill in the app's name, room prefix, App Store Connect id, repo path, source language and the language you'll check. Repeat for each app.
 
 The repo should have `marketing/localization/<locale>/strings.json`, with the release notes in `version.whatsNew` and the App Store description in `version.description` (a string, or a list of lines). A locale must already exist on the version in App Store Connect, or `whatsnew` skips it and says so.
+
+### What your app needs
+
+Paths are relative to the app's repo.
+
+| What | Needed for | If it's missing |
+| --- | --- | --- |
+| `marketing/localization/<locale>/strings.json`, one folder per App Store locale | What's New and the description | `@release` runs `pull-text`, which starts them from your newest version on Apple, in every language it already has. What's New is then written from the commits |
+| `marketing/app-review-notes.md` | App Review notes | `review-notes` prints the notes on Apple, and `@release` creates the file with your approval |
+| `project.yml` for XcodeGen, with a top-level `name` matching the scheme | `bin/bump` and `bin/upload` | They refuse. Upload the build another way and the rest of the release still works, starting from a VALID build |
+| A Mac app | `bin/upload`, which always builds for macOS | Same as above. Other platforms are untested |
+
+A minimal `strings.json`. Other keys in the file are ignored:
+
+```json
+{
+  "version": {
+    "whatsNew": "What changed in this version.",
+    "description": ["First line of the description.", "Second line."]
+  }
+}
+```
+
+`version` here is the group for text that belongs to an App Store version, not a version number, so the text can stay the same between releases. `whatsNew` and `description` can each be a string or a list of lines.
+
+In `app-review-notes.md`, the notes go between the first two `---` lines, so you can keep your own comments above and below them. With only one `---`, the notes are everything after it:
+
+```markdown
+# My notes to myself, not sent to Apple
+
+---
+
+What the reviewer should know, and what's new in this version.
+
+---
+
+More notes to myself, not sent to Apple.
+```
+
+The source language is the locale your description is written in first. `description` refuses to send a changed description while any translation is still unchanged.
 
 ## 6. Start `@asc`
 
