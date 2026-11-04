@@ -12,7 +12,7 @@
 git clone --depth 1 https://github.com/sandbox-quantum/switch && cd switch/gateway
 ```
 
-In `vite.config.ts`, point the proxy target at your API port (the `api` value in `~/Library/Application Support/switchdash/local-switch-server/ports.json`). Then:
+In `vite.config.ts`, point the proxy target at your API port (the `api` value in `~/Library/Application Support/switchdash/local-switch-server/ports.json`, which on Linux should be under `~/.config/switchdash/`). Then:
 
 ```sh
 npm install --ignore-scripts

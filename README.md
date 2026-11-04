@@ -63,10 +63,10 @@ No Apple account needed. The app is fictional, App Store Connect is a local fake
 
 You need:
 
-- A Mac with Xcode Command Line Tools, for `git`, `make` and `python3`
+- A Mac with Xcode Command Line Tools, or Linux, for `git`, `make` and `python3`
 - [Switch Console](https://docs.switchagents.ai/switch-rooms/getting-started/install-switch-console.md), with **Run a server on this computer** (a download of a few GB)
-- Docker Desktop running, for the bundled Mattermost
-- [Claude Code](https://code.claude.com/docs), signed in on the same Mac
+- Docker running, for the bundled Mattermost
+- [Claude Code](https://code.claude.com/docs), signed in on the same machine. On Linux its sandbox also needs `bubblewrap` and `socat`
 
 ```sh
 git clone https://github.com/dpeter79/release-room && cd release-room
@@ -119,7 +119,7 @@ These are guard rails for agents doing their job, or misled by what they read. P
 - Apple's API has no rejection text, so a person pastes it into the room.
 - Apple's API has written reviews only: no star-only ratings and no average.
 - Sales come from daily reports, ready about 17:00 CET, and aren't included in this repo for real apps ([what you need](docs/setup.md#sales-optional)). Impressions and conversion aren't available.
-- It targets Mac apps by default (`--platform` in `kit/asc.py`). `make demo` is Mac-only because of where Console keeps its files.
+- It targets Mac apps by default (`--platform` in `kit/asc.py`). The demo has only been run on a Mac. On Linux the tests pass, but it hasn't been run with Console, which is early access there. Real builds and uploads need a Mac.
 - It's only tested with Claude Code. The instructions are plain `AGENTS.md` files and the scripts don't depend on any agent, so the demo template should also run on Codex, OpenCode, Cursor or Antigravity (Provider, under Advanced). But the Allow step and the folder lockdown are Claude Code rules: another CLI has neither until you set up its own, so keep it to the fake.
 
 ## License

@@ -27,7 +27,9 @@ from switch_op import op  # noqa: E402
 ENV = ROOT / ".env"
 STATE = ROOT / "state"
 REPO = ROOT / "demo/DemoCam"
-LOCAL_SERVER = pathlib.Path.home() / "Library/Application Support/switchdash/local-switch-server"
+# Where Electron keeps Console's data on each system. Not checked on a real Linux Console: if it's wrong, make demo falls back to a key you create.
+APP_DATA = pathlib.Path.home() / "Library/Application Support" if sys.platform == "darwin" else pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config")
+LOCAL_SERVER = APP_DATA / "switchdash/local-switch-server"
 TEMPLATE = "democam-demo"
 AGENTS = {"release": "Runs the App Store release", "l10n": "Translates release notes",
           "stats": "Answers questions about sales, downloads and submission status",
