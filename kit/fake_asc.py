@@ -225,7 +225,7 @@ class Fake:
             if x["state"] == "PENDING_PUBLISH":
                 x["state"] = "PUBLISHED"
                 changed.append("review reply published")
-        if self.s["incoming_reviews"]:
+        if self.s["incoming_reviews"] and not changed and all(v["state"] == LIVE for v in self.s["versions"]):  # customers react to what's out, so never mid-release
             r = self.s["incoming_reviews"].pop(0) | {"created": now()}
             self.s["customer_reviews"].append(r)
             changed.append(f"new {r['rating']}-star review from {r['territory']}")

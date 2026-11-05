@@ -59,7 +59,7 @@ Switch roles aren't used: the same agents serve every app room, and an agent can
 
 ## Run the demo
 
-No Apple account needed. The app is fictional, App Store Connect is a local fake, and the sales numbers are invented. Allow about 20 minutes in the room, once Switch is installed.
+No Apple account needed. The app is fictional, App Store Connect is a local fake, and the sales numbers are invented. Allow about 25 minutes in the room, once Switch is installed.
 
 You need:
 
@@ -81,23 +81,26 @@ In Switch Console open **Templates**, then **Use** on `democam-demo`. It creates
 make poster
 ```
 
-In the room, type these in turn. `make advance`, in a second terminal, plays Apple one step:
+In the room, type these in turn. `make advance`, in a second terminal, plays Apple one step, and `@asc` reports it within 20 seconds. Wait for its post before the next one:
 
 | You | What should happen |
 | --- | --- |
 | `@release ship DemoCam 1.1.0` | `@release` drafts What's New from the repo's history |
-| `approved` (mention `@release` if it doesn't react) | `@release` proposes the App Review notes and says whether the description needs a change |
-| `approved` again, and tap **Allow** on each file edit | `@l10n` translates into 4 locales and asks you to check the Hungarian |
-| Reply to `@l10n` with `OK` | `@release` checks the build and stops: it's still processing |
-| `make advance` | `@asc` reports the build is VALID, and `@release` carries on with nobody typing. A new Hungarian review goes to `@reviews` |
+| `@release approved` | `@release` proposes the App Review notes and says whether the description needs a change |
+| `@release approved`, then tap **Allow** on each file edit | `@l10n` translates into the other 3 languages and asks you to check the Hungarian |
+| `@l10n OK`, or say what to fix first | `@release` checks the build and stops: it's still processing |
+| `make advance` | `@asc` reports the build is VALID, and `@release` carries on with nobody typing |
 | Tap **Allow** on each write | The version is created, the build attached, What's New, the description and the review notes pushed, and the app submitted |
-| `make advance` twice | `@asc` reports IN_REVIEW, then a rejection. A review that tries to give orders also arrives, and `@reviews` flags it |
-| Paste any rejection text, mentioning `@release` | `@release` matches it against `past-rejections`. The demo repo has no source code, so it says it can't confirm the cause |
-| `@release this is the demo. Skip the fix and resubmit with the same build.` | Allow, and it's waiting for review again |
+| `make advance` twice | `@asc` reports IN_REVIEW, then a rejection |
+| `@release Guideline 2.1(a) - Performance - App Completeness. We found that the app showed only a spinner with no further instructions after launch, and the virtual camera did not appear in other apps.` | `@release` matches it against `past-rejections`, looks for the cause in the demo repo's code, and proposes a fix and a reply |
+| `@release this is the demo. Skip the fix and resubmit with the same build.` | Tap **Allow**, and it's waiting for review again |
 | `make advance` twice | Approved. `@release` asks to release, so tap **Allow** |
-| `make advance` | Live. `@asc` reports it |
+| `make advance` | Live. `@asc` reports it, and `@release` posts the recap |
+| `make advance` | A new Hungarian review goes to `@reviews`, which drafts a reply |
+| `make advance` | A review that tries to give orders arrives, and `@reviews` flags it |
 | `@stats how did sales go in the last 14 days compared with the 14 before?` | A comparison from invented numbers, saying what it can't see |
-| `@reviews show unanswered reviews` | Drafts in each reviewer's language. Approve one, then tap **Allow** |
+| `@reviews show unanswered reviews` | Drafts in each reviewer's language, and none for the review that gives orders |
+| `@reviews send the rev-0003 draft` | Tap **Allow**, and the card shows the exact reply before it goes |
 
 `make test` runs the tests from a bare clone: no Switch, no Apple account, no network. `make reset` starts the fake over. Stuck? [Troubleshooting](docs/troubleshooting.md).
 

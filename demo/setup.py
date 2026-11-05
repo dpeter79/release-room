@@ -16,6 +16,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -59,7 +60,11 @@ def write_env() -> None:
 def write_fixtures() -> None:
     STATE.mkdir(exist_ok=True)
     if not (STATE / "demo-asc.json").exists():
-        shutil.copy(ROOT / "kit/fixtures/demo-state.json", STATE / "demo-asc.json")
+        state = json.loads((ROOT / "kit/fixtures/demo-state.json").read_text())
+        for build in state["builds"]:  # uploaded just now, so it doesn't look stuck
+            if build["state"] == "PROCESSING":
+                build["uploaded"] = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat(timespec="seconds")
+        (STATE / "demo-asc.json").write_text(json.dumps(state, ensure_ascii=False, indent=1) + "\n")
     if not (REPO / "marketing/localization").exists():
         shutil.rmtree(REPO, ignore_errors=True)
         subprocess.run(["sh", ROOT / "kit/fixtures/make-demo-repo.sh", REPO], check=True)
@@ -69,6 +74,8 @@ def write_fixtures() -> None:
             strings["version"]["whatsNew"] = ""
             path.write_text(json.dumps(strings, ensure_ascii=False, indent=2) + "\n")
         shutil.copy(ROOT / "kit/fixtures/demo-review-notes.md", REPO / "marketing/app-review-notes.md")
+        subprocess.run(["git", "-C", REPO, "add", "marketing"], check=True)
+        subprocess.run(["git", "-C", REPO, "-c", "user.name=Demo", "-c", "user.email=demo@example.com", "commit", "-q", "-m", "Internal: add the App Store text"], check=True)
 
 
 def register_asc() -> None:

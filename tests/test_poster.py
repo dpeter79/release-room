@@ -58,7 +58,8 @@ once()
 assert posts == [], posts  # the first poll only records
 
 # Apple moves while Switch is down: nothing is posted, nothing is lost.
-advance()
+advance()  # the build turns VALID
+advance()  # a new review
 status[0] = 503
 once()
 assert posts == [] and outbox.read_text(), "a failed post must wait in the outbox"
@@ -87,6 +88,7 @@ assert posts and not posts[0]["content"].startswith("@"), posts
 posts.clear()
 state = json.loads(fake.read_text())
 state["incoming_reviews"] = [{**state["customer_reviews"][0], "id": "rev-9", "body": "first\u2028second"}]
+state["versions"][0]["state"] = "READY_FOR_DISTRIBUTION"
 fake.write_text(json.dumps(state))
 advance()
 status[0] = 401

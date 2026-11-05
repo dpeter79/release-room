@@ -224,7 +224,10 @@ def main() -> None:
     assert version_state(state, "1.1.0") == "READY_FOR_DISTRIBUTION"
     assert json.loads(run(state, "status", APP))["live"] == "1.1.0"
 
-    # The fixture's new reviews arrived during the advances; only they are new.
+    # The fixture's new reviews wait until the version is live; only they are new.
+    assert run(state, "customer-reviews", APP, "--state", seen) == ""
+    Fake(state).advance()
+    Fake(state).advance()
     new = [json.loads(line) for line in run(state, "customer-reviews", APP, "--state", seen).splitlines()]
     assert [r["territory"] for r in new] == ["GBR", "HUN"] or [r["territory"] for r in new] == ["HUN", "GBR"], new
     assert "nickname" not in json.dumps(new) and "lilla" not in json.dumps(new), "nickname leaked"
