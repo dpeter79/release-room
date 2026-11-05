@@ -1,6 +1,12 @@
 # Release Room
 
-An App Store release, run as a team in one chat room on [Switch](https://docs.switchagents.ai). Four Claude Code agents do the chores, a fifth gives App Store Connect a voice in the room, and nothing irreversible happens until a person taps Allow.
+[![Tests](https://github.com/dpeter79/release-room/actions/workflows/test.yml/badge.svg)](https://github.com/dpeter79/release-room/actions/workflows/test.yml)
+
+An App Store release is about an hour of chores for me, in 32 languages, and I'm the glue: every step ends with me noticing something changed and telling the next thing to start. Release Room moves it into one chat room on [Switch](https://docs.switchagents.ai). Four Claude Code agents do the chores, a fifth gives App Store Connect a voice in the room, and nothing irreversible happens until a person taps Allow.
+
+**This is real work, not a simulation.** The agents run in real Slack rooms, and `@asc` watches the real App Store Connect for my apps FrostCam and WarmCam. The only fake is the [demo](#run-the-demo), so that you can try it with no Apple account, and it's labelled as one.
+
+<!-- After the release: add which versions shipped this way, and the measured time. -->
 
 Every app gets its own room. In it you can say "ship 1.2.8", ask how sales went, or answer a customer review, without leaving the chat. **The project stops working without Switch: there is no other interface.**
 
@@ -53,7 +59,7 @@ sequenceDiagram
 
 Switch roles aren't used: the same agents serve every app room, and an agent can hold one role at a time, so a second room would have no holder.
 
-`kit/` is my existing App Store Connect library. The Switch setup and workflow were built for this hackathon.
+`kit/` started as my existing App Store Connect library. The Switch setup and workflow were built for this hackathon: [what existed before](#what-existed-before-the-hackathon).
 
 [Architecture and why it's built this way](docs/architecture.md)
 
@@ -117,6 +123,23 @@ In the room, type these in turn. `make advance`, in a second terminal, plays App
 - `lock_agents.py` closes your home folder to agents, apart from the app repos. Claude Code's sandbox stops shell commands from reading elsewhere, changing the app repos or reaching the network, and deny rules stop the file tools, which the sandbox doesn't cover. The commands in `bin/` run outside the sandbox because they need the keys and the network.
 
 These are guard rails for agents doing their job, or misled by what they read. Permission rules match command text, so they aren't a boundary against someone who controls an agent on purpose.
+
+## What existed before the hackathon
+
+The hackathon window opened on 3 Nov 2026 at 19:31 CET.
+
+**Already there:**
+
+- The first version of `kit/`: its commands, the fake, the fixtures and the test, last changed on 29 Oct. Commit [`b05d065`](https://github.com/dpeter79/release-room/commit/b05d065) is that version, plus small changes I made while bringing it in during the window: neutralized review mentions, no abbreviated flags and a clearer missing-key error.
+- The manual steps `bin/upload` automates, from my earlier releases.
+- My notes on past App Review rejections, which became `room/docs/past-rejections.md`.
+- The apps themselves.
+
+**Built during the window, with Claude Code:**
+
+- Everything that touches Switch: the room template and documents, the four agents and their instructions, `@asc`'s poster and registration, and the demo setup.
+- `bin/asc`, `bin/bump`, `bin/upload`, `bin/sales` and `lock_agents.py`.
+- In `kit/`: `pull-text`, `description` and `review-notes`, the guards against shipping stale or untranslated text, and the tests for them. `git diff b05d065 HEAD -- kit` shows all of it.
 
 ## What it can't do
 
