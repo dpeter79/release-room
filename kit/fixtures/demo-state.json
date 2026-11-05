@@ -41,25 +41,29 @@
    "id": "l-en",
    "version": "v-100",
    "locale": "en-US",
-   "whatsNew": "First release."
+   "whatsNew": "First release.",
+   "description": "DemoCam is a fictional Mac virtual camera."
   },
   {
    "id": "l-de",
    "version": "v-100",
    "locale": "de-DE",
-   "whatsNew": "Erste Version."
+   "whatsNew": "Erste Version.",
+   "description": "DemoCam ist eine fiktive virtuelle Kamera für den Mac."
   },
   {
    "id": "l-hu",
    "version": "v-100",
    "locale": "hu",
-   "whatsNew": "Az első kiadás."
+   "whatsNew": "Az első kiadás.",
+   "description": "A DemoCam egy kitalált virtuális kamera Macre."
   },
   {
    "id": "l-ja",
    "version": "v-100",
    "locale": "ja",
-   "whatsNew": "最初のリリース。"
+   "whatsNew": "最初のリリース。",
+   "description": "DemoCamは架空のMac用仮想カメラです。"
   }
  ],
  "reviews": [],

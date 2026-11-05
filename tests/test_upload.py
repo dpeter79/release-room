@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """bin/bump and bin/upload against the fake, a temp git repo and stub build tools. Nothing here touches Apple."""
+import contextlib
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 import pathlib
@@ -66,7 +68,7 @@ try:
 
     # Translations waiting to be committed go in with the bump, and the dry run says so.
     (repo / "marketing/localization/hu/strings.json").write_text('{"version": {"whatsNew": "Javitas"}}\n')
-    (repo / "marketing/app-review-notes.md").write_text("---\\nNew notes.\\n")
+    (repo / "marketing/app-review-notes.md").write_text("---\nNew notes.\n")
     assert "marketing/localization/hu/strings.json" in run("bump", APP, repo, "1.2.0").stdout
 
     # An app with several targets gets the new number in every Info.plist, and other work is left alone.
@@ -86,7 +88,7 @@ try:
     (repo / ".git/hooks/pre-commit").write_text("#!/bin/sh\nexit 1\n")
     (repo / ".git/hooks/pre-commit").chmod(0o755)
     out = run("bump", APP, repo, "1.3.0", "--apply")
-    assert "Nothing to do" in out.stdout or "put back" in out.stderr, out.stdout + out.stderr
+    assert "put back" in out.stderr, out.stdout + out.stderr
     data = json.loads(fake.read_text())
     before = fake.read_text()
     data["builds"].append({**data["builds"][0], "id": "b-8", "build": "8", "version": "1.2.0", "state": "VALID"})
@@ -98,7 +100,8 @@ try:
 
     # Unfinished work blocks an upload, so a build always matches committed code.
     out = run("upload", APP, repo)
-    assert "uncommitted" in out.stderr and "1 uncommitted" not in out.stdout, out.stdout + out.stderr
+    assert "uncommitted" in out.stderr, out.stdout + out.stderr
+    assert "other uncommitted" in run("bump", APP, repo, "9.9.9").stdout, "the bump's dry run must warn about it"
     git("reset", "-q", "--", "note.txt")
     (repo / "note.txt").unlink()
     out = run("upload", APP, repo)
@@ -133,14 +136,16 @@ if "--upload-app" in args:
     loader.exec_module(upload)
     (tmp / "altool-says").write_text("ERROR: something went wrong, KEY")
     try:
-        upload.run_upload(repo, "DemoCam", "TEAM", tmp / "work")
+        with contextlib.redirect_stdout(io.StringIO()):
+            upload.run_upload(repo, "DemoCam", "TEAM", tmp / "work")
     except SystemExit as e:  # altool can exit 0 after a failure
         assert "Uploading failed" in str(e) and "<key>" in str(e) and ", KEY" not in str(e), e
     else:
         raise AssertionError("a failed upload was reported as a success")
     calls.unlink()
     (tmp / "altool-says").write_text("UPLOAD SUCCEEDED with no errors")
-    upload.run_upload(repo, "DemoCam", "TEAM", tmp / "work")
+    with contextlib.redirect_stdout(io.StringIO()):
+        upload.run_upload(repo, "DemoCam", "TEAM", tmp / "work")
     steps = [json.loads(line) for line in calls.read_text().splitlines()]
     assert [s["tool"] for s in steps] == ["xcodegen", "xcodebuild", "xcodebuild", "xcrun"]
     assert steps[1]["args"][0] == "archive" and "CODE_SIGN_IDENTITY=Apple Development" in steps[1]["args"]

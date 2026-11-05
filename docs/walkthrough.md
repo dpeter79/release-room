@@ -1,6 +1,6 @@
 # A full run
 
-These are real messages from a run of the demo on the evening of 3 Nov 2026 CET, after the window opened, shortened where marked. Apple was the local fake, and `make advance` played its side. The demo agents are `demo-release` and so on, called `@release` in the room by an alias, so `@asc` writes their full names. That run was on an earlier version, where `@asc` sent two posts when two things changed. It now joins them into one, and mentions an agent only for states the checklist waits for.
+These are real messages from a run of the demo on the evening of 3 Nov 2026 CET, after the window opened, shortened where marked. The description and App Review notes steps were added after this run, so they don't appear here. Apple was the local fake, and `make advance` played its side. The demo agents are `demo-release` and so on, called `@release` in the room by an alias, so `@asc` writes their full names. That run was on an earlier version, where `@asc` sent two posts when two things changed. It now joins them into one, and mentions an agent only for states the checklist waits for.
 
 ## You start it
 

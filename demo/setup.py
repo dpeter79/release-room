@@ -64,6 +64,10 @@ def write_fixtures() -> None:
         shutil.rmtree(REPO, ignore_errors=True)
         subprocess.run(["sh", ROOT / "kit/fixtures/make-demo-repo.sh", REPO], check=True)
         shutil.copytree(ROOT / "kit/fixtures/demo-locales", REPO / "marketing/localization")
+        for path in (REPO / "marketing/localization").glob("*/strings.json"):  # @l10n writes this during the demo
+            strings = json.loads(path.read_text())
+            strings["version"]["whatsNew"] = ""
+            path.write_text(json.dumps(strings, ensure_ascii=False, indent=2) + "\n")
         shutil.copy(ROOT / "kit/fixtures/demo-review-notes.md", REPO / "marketing/app-review-notes.md")
 
 
@@ -90,6 +94,11 @@ def register_asc() -> None:
             subprocess.run([sys.executable, ROOT / "register_asc.py"], input=key["key"], text=True, check=True)
         finally:
             call(f"/api-keys/{key['id']}", method="DELETE")
+    except urllib.error.HTTPError as e:
+        raise SystemExit(REGISTER_BY_HAND.format(e))
+    except urllib.error.URLError as e:
+        raise SystemExit(f"Can't reach your Switch server: {e.reason}. Is it running in Switch Console? "
+                         "If its port changed since .env was written, delete .env and run make demo again.")
     except (OSError, KeyError, ValueError, subprocess.CalledProcessError) as e:
         raise SystemExit(REGISTER_BY_HAND.format(e))
 

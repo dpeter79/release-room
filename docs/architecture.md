@@ -25,7 +25,7 @@ Console runs the four Claude Code agents on your Mac, each in its own folder und
 
 | Checklist step | What happens | Switch feature |
 | --- | --- | --- |
-| 1 to 2, notes | `@release` reads the commits since the live build, drafts What's New, and saves the approved text | Room document `whats-new-<version>` |
+| 1 to 2, notes | `@release` reads the commits since the live build, drafts What's New, saves the approved text, and updates the App Review notes and description | Room document `whats-new-<version>` |
 | 3, translation | `@release` mentions `@l10n`, which translates and asks you to check your language | Agent-to-agent mention, Who can talk to your agent |
 | 4, build | `@release` checks for a VALID build. If there's none, it bumps the version and uploads, each after an Allow, then waits for `@asc` | In-room Allow / Decline, custom agent posting into the room |
 | 5 to 7, writes | Dry run, then `--apply`, which pauses for you | In-room Allow / Decline |
@@ -47,7 +47,7 @@ The full text is in [`room/docs/release-checklist.md`](../room/docs/release-chec
 
 **Dry run and `--apply` are separate commands, never chained.** The `ask` rule matches `--apply`, so the Allow request shows exactly what will run. The tool refuses abbreviated flags, because `--app` would otherwise mean `--apply` without matching the rule.
 
-**A build always matches committed code.** `bin/upload` refuses a repo with uncommitted changes, and `bin/bump`'s commit holds only the version files and the translations, and its dry run lists them, so an agent can't ship or sweep up someone's unfinished work. The agents themselves can't commit. The upload steps are the ones that shipped real builds by hand before this repo existed.
+**A build always matches committed code.** `bin/upload` refuses a repo with uncommitted changes, and `bin/bump`'s commit holds only the version files and the release text, and its dry run lists them, so an agent can't ship or sweep up someone's unfinished work. The agents themselves can't commit. The upload steps are the ones that shipped real builds by hand before this repo existed.
 
 **The sandbox and deny rules are both needed.** During testing, Auto mode let an agent search other projects to answer a question about the demo app: `additionalDirectories` isn't a boundary. Claude Code's sandbox stops shell commands, but not the Read and Edit tools, so [`lock_agents.py`](../lock_agents.py) writes both layers.
 

@@ -12,7 +12,7 @@ fake_asc.py's local fake instead of Apple, with no credentials needed.
     asc.py watch APP --state FILE          # prints one JSON line per change since the last run
     asc.py create-version APP 1.0.9 [--apply]
     asc.py attach-build APP 1.0.9 11 [--apply]
-    asc.py whatsnew APP 1.0.9 [locale ...] --dir marketing/localization [--apply]
+    asc.py whatsnew APP 1.0.9 [locale ...] --dir marketing/localization [--source en-US] [--apply]
     asc.py description APP 1.0.9 [locale ...] --dir marketing/localization [--source en-US] [--apply]
     asc.py pull-text APP --repo PATH [--apply]            # starts marketing/localization from Apple's newest version
     asc.py review-notes APP 1.0.9 --repo PATH [--apply]   # from PATH/marketing/app-review-notes.md
@@ -144,7 +144,7 @@ def app_name(api, app: str) -> str:
 
 def write(api, apply: bool, method: str, path: str, body: dict) -> dict:
     if not apply:
-        print(f"DRY RUN, would {method} {path}\n  {json.dumps(body)}")
+        print(f"DRY RUN, would {method} {path}\n  {json.dumps(body, ensure_ascii=False)}")
         return {}
     return api.call(method, path, body)
 
@@ -233,21 +233,50 @@ def editable_version(api, a) -> dict:
     return v
 
 
+def check_translated(api, a, v: dict, field: str, current: dict[str, str]) -> None:
+    """Changed source text must reach every language, so last release's text can't ship by accident.
+
+    Looks at the whole folder, even when a.locales names one language.
+    """
+    new = load_text(pathlib.Path(a.dir), [], field)
+    if a.source not in new:
+        raise SystemExit(f"The source language {a.source} isn't in {a.dir}. Name the right one with --source.")
+    previous: dict[str, str] = {}
+    others = [x for x in versions(api, a.app, a.platform) if x["id"] != v["id"]]
+    if field == "whatsNew" and others:  # Apple may or may not copy it into the new version, so compare with the old one too
+        last = max(others, key=lambda x: x["created"] or "")
+        previous = {loc["attributes"]["locale"]: loc["attributes"].get(field) or "" for loc in api.call(
+            "GET", q(f"/v1/appStoreVersions/{last['id']}/appStoreVersionLocalizations", limit=200))["data"]}
+        if new[a.source] == previous.get(a.source):
+            raise SystemExit(f"The {a.source} What's New is still the text of version {last['version']}. "
+                             "Write this version's text first. Nothing changed.")
+    if new[a.source] != current.get(a.source):
+        missed = [loc for loc, text in new.items()
+                  if loc != a.source and loc in current and text in (current[loc], previous.get(loc))]
+        if missed:
+            raise SystemExit(f"The {a.source} text changed, but these translations didn't: {', '.join(missed)}. "
+                             "Ask @l10n to translate them. Nothing changed.")
+
+
 def push_text(api, a, field: str) -> None:
     v = editable_version(api, a)
-    new = load_text(pathlib.Path(a.dir), a.locales, field)
     current = {loc["attributes"]["locale"]: loc for loc in api.call(
         "GET", q(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations", limit=200))["data"]}
+    on_apple = {loc: c["attributes"].get(field) or "" for loc, c in current.items()}
+    check_translated(api, a, v, field, on_apple)
+    new = load_text(pathlib.Path(a.dir), a.locales, field)
     changed = skipped = 0
     for loc, text in new.items():
         if loc not in current:
             print(f"{loc:<8} not on this version, skipped (add the locale in App Store Connect first)")
             skipped += 1
             continue
-        if (current[loc]["attributes"].get(field) or "") == text:
+        if on_apple[loc] == text:
             print(f"{loc:<8} unchanged")
             continue
-        print(f"{loc:<8} {len(text):>4} chars  {text.splitlines()[0][:60]}")
+        old_lines = on_apple[loc].splitlines()
+        first_new = next((line for line in text.splitlines() if line not in old_lines), text.splitlines()[0])
+        print(f"{loc:<8} {len(text):>4} chars  {first_new[:60]}")
         write(api, a.apply, "PATCH", f"/v1/appStoreVersionLocalizations/{current[loc]['id']}", {"data": {
             "type": "appStoreVersionLocalizations", "id": current[loc]["id"], "attributes": {field: text}}})
         changed += 1
@@ -260,18 +289,6 @@ def cmd_whatsnew(api, a) -> None:
 
 
 def cmd_description(api, a) -> None:
-    """A changed source description must reach every language, so a missed translation can't ship."""
-    v = editable_version(api, a)
-    new = load_text(pathlib.Path(a.dir), a.locales, "description")
-    current = {loc["attributes"]["locale"]: loc["attributes"].get("description") or "" for loc in api.call(
-        "GET", q(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations", limit=200))["data"]}
-    if not a.locales and a.source not in new:
-        raise SystemExit(f"The source language {a.source} isn't in {a.dir}. Name the right one with --source.")
-    if a.source in new and new[a.source] != current.get(a.source):
-        missed = [loc for loc, text in new.items() if loc != a.source and loc in current and current[loc] == text]
-        if missed:
-            raise SystemExit(f"The {a.source} description changed, but these translations didn't: {', '.join(missed)}. "
-                             "Ask @l10n to translate them. Nothing changed.")
     push_text(api, a, "description")
 
 
@@ -297,7 +314,7 @@ def cmd_pull_text(api, a) -> None:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps({"locale": locale, "version": {
                 "description": loc["attributes"].get("description") or "",
-                "whatsNew": loc["attributes"].get("whatsNew") or ""}}, ensure_ascii=False, indent=2) + "\n")
+                "whatsNew": ""}}, ensure_ascii=False, indent=2) + "\n")
     print(f"\n{added} language file(s) {'written' if a.apply else 'to write'}, from version {newest['version']}.")
 
 
@@ -310,7 +327,9 @@ def load_review_notes(repo: pathlib.Path) -> str | None:
     if not path.is_file():
         return None
     parts = re.split(r"^---[ \t]*$", path.read_text(), flags=re.M)
-    notes = (parts[1] if len(parts) > 1 else parts[0]).strip()
+    if len(parts) < 2:
+        raise SystemExit(f"{path} has no --- line, so nothing marks where the notes start. See docs/setup.md.")
+    notes = parts[1].strip()
     if not notes:
         raise SystemExit(f"{path} has no notes.")
     if len(notes) > TEXT_MAX:
@@ -318,17 +337,29 @@ def load_review_notes(repo: pathlib.Path) -> str | None:
     return notes
 
 
+def review_detail(api, version_id: str) -> dict | None:
+    """Apple answers 404, not an empty result, when a version has no review details yet."""
+    try:
+        return api.call("GET", f"/v1/appStoreVersions/{version_id}/appStoreReviewDetail").get("data")
+    except SystemExit as e:
+        if "-> 404" in str(e):
+            return None
+        raise
+
+
 def cmd_review_notes(api, a) -> None:
-    v = editable_version(api, a)
     notes = load_review_notes(pathlib.Path(a.repo))
-    detail = api.call("GET", f"/v1/appStoreVersions/{v['id']}/appStoreReviewDetail").get("data")
     if notes is None:
         if a.apply:
             raise SystemExit("There's no marketing/app-review-notes.md to send. Nothing changed.")
+        # Only reads, so any version will do, including the live one.
+        detail = review_detail(api, find_version(api, a.app, a.platform, a.version)["id"])
         on_apple = (detail or {}).get("attributes", {}).get("notes")
         print("No marketing/app-review-notes.md in this repo yet. Nothing to send.")
         print(f"Notes on Apple now:\n{on_apple}" if on_apple else "This version has no notes on Apple either.")
         return
+    v = editable_version(api, a)
+    detail = review_detail(api, v["id"])
     if detail and (detail["attributes"].get("notes") or "") == notes:
         print("Review notes unchanged. 0 to update.")
         return
@@ -438,6 +469,7 @@ def main(argv: list[str] | None = None) -> None:
     add("attach-build", cmd_attach_build, "version", "build")
     p = add("whatsnew", cmd_whatsnew, "version")
     p.add_argument("--dir", required=True, help="folder with <locale>/strings.json")
+    p.add_argument("--source", default="en-US", help="the language the text is written in first")
     p.add_argument("locales", nargs="*")
     p = add("description", cmd_description, "version")
     p.add_argument("--dir", required=True, help="folder with <locale>/strings.json")

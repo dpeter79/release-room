@@ -70,7 +70,7 @@ def main() -> None:
     text = read_spec(a.repo)
     version, build = spec_value(text, "MARKETING_VERSION"), spec_value(text, "CURRENT_PROJECT_VERSION")
     if any(b["version"] == version and b["build"] == build for b in uploaded_builds(a.app)):
-        raise SystemExit(f"{version} ({build}) is already uploaded. Run bin/bump first.")
+        raise SystemExit(f"{version} ({build}) is already uploaded. If you need a new build, run bin/bump first.")
     dirty = git(a.repo, "status", "--porcelain").splitlines()
     if dirty:
         raise SystemExit(f"{a.repo.name} has {len(dirty)} uncommitted changes, and a build must match committed code. "

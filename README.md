@@ -32,9 +32,9 @@ sequenceDiagram
 
 | Who | Kind | Job | What it can change |
 | --- | --- | --- | --- |
-| `@release` | Claude Code | Drafts notes, bumps the version, uploads the build, pushes What's New, the description and App Review notes, submits, releases, triages rejections | App Store Connect; through `bin/bump`, the version in `project.yml` and each `Info.plist`, plus a commit of those with the translations; any other file in the app repo, such as a fix after a rejection. Each write needs an Allow |
-| `@l10n` | Claude Code | Translates approved notes into every locale | Only the locale files |
-| `@stats` | Claude Code | Answers questions about sales, downloads, trends and submission status | Nothing |
+| `@release` | Claude Code | Drafts notes, bumps the version, uploads the build, pushes What's New, the description and App Review notes, submits, releases, triages rejections | App Store Connect; through `bin/bump`, the version in `project.yml` and each `Info.plist`, plus a commit of those with the release text; any other file in the app repo, such as a fix after a rejection. Each write needs an Allow |
+| `@l10n` | Claude Code | Translates approved notes and description changes into every locale | Only the locale files |
+| `@stats` | Claude Code | Answers questions about sales, downloads, trends, reviews and submission status | Nothing |
 | `@reviews` | Claude Code | Shows reviews and drafts replies in the reviewer's language | Only review replies, each after your approval and an Allow |
 | `@asc` | Custom agent on the Switch protocol | Posts App Store Connect changes and new reviews | Nothing, it only reports |
 | You | Person | Decide, approve, check the translation in your language | Everything |
@@ -46,10 +46,10 @@ sequenceDiagram
 | One room per app, with its agents and instructions | Room template | [`room/template.yaml`](room/template.yaml) |
 | Checklist, Apple's limits, past rejections, approved notes | Room documents | [`room/docs/`](room/docs/), embedded by [`save_template.py`](save_template.py) |
 | Agents hand work to each other | A mention starts the addressed agent's turn | [`agents/*/AGENTS.md`](agents/release/AGENTS.md) |
-| Every write to Apple | Claude Code `ask` rules, posted in the room as Allow / Decline by Auto mode | [`agents/release/.claude/settings.json`](agents/release/.claude/settings.json) |
+| Every write to Apple | Claude Code `ask` rules, posted in the room as Allow / Decline. Auto mode, Console's default for an agent, is what runs safe actions and asks about the rest | [`agents/release/.claude/settings.json`](agents/release/.claude/settings.json) |
 | App Store Connect reports changes and reviews | Agent protocol: `POST /agents/{id}/message` | [`asc_poster.py`](asc_poster.py), [`register_asc.py`](register_asc.py) |
 | Demo setup and room lookup | Operations API: `/agents/{id}/ops` | [`switch_op.py`](switch_op.py) |
-| Chat app | Mattermost bundled with the local server, or [Slack](docs/setup.md#connect-slack) | The template's Messaging app field |
+| Chat app | Mattermost bundled with the local server, or [Slack](docs/setup.md#connect-slack) | Chosen in the Messaging app field when you run the template |
 
 Switch roles aren't used: the same agents serve every app room, and an agent can hold one role at a time, so a second room would have no holder.
 
@@ -86,10 +86,11 @@ In the room, type these in turn. `make advance`, in a second terminal, plays App
 | You | What should happen |
 | --- | --- |
 | `@release ship DemoCam 1.1.0` | `@release` drafts What's New from the repo's history |
-| `approved` (mention `@release` if it doesn't react) | `@l10n` translates into 4 locales and asks you to check the Hungarian |
+| `approved` (mention `@release` if it doesn't react) | `@release` proposes the App Review notes and says whether the description needs a change |
+| `approved` again, and tap **Allow** on each file edit | `@l10n` translates into 4 locales and asks you to check the Hungarian |
 | Reply to `@l10n` with `OK` | `@release` checks the build and stops: it's still processing |
 | `make advance` | `@asc` reports the build is VALID, and `@release` carries on with nobody typing. A new Hungarian review goes to `@reviews` |
-| Tap **Allow** on each write | The version is created, the build attached, the notes pushed and the app submitted |
+| Tap **Allow** on each write | The version is created, the build attached, What's New, the description and the review notes pushed, and the app submitted |
 | `make advance` twice | `@asc` reports IN_REVIEW, then a rejection. A review that tries to give orders also arrives, and `@reviews` flags it |
 | Paste any rejection text, mentioning `@release` | `@release` matches it against `past-rejections`. The demo repo has no source code, so it says it can't confirm the cause |
 | `@release this is the demo. Skip the fix and resubmit with the same build.` | Allow, and it's waiting for review again |
@@ -119,7 +120,7 @@ These are guard rails for agents doing their job, or misled by what they read. P
 - Apple's API has no rejection text, so a person pastes it into the room.
 - Apple's API has written reviews only: no star-only ratings and no average.
 - Sales come from daily reports, ready about 17:00 CET, and aren't included in this repo for real apps ([what you need](docs/setup.md#sales-optional)). Impressions and conversion aren't available.
-- `bin/bump` and `bin/upload` need a Mac app built with XcodeGen. With anything else, upload the build another way and the rest of the release still works, though other platforms are untested ([what your app needs](docs/setup.md#what-your-app-needs)). The demo has only been run on a Mac. On Linux the tests pass, but it hasn't been run with Console, which is early access there. Real builds and uploads need a Mac.
+- It's for Mac apps: every command assumes the macOS platform. `bin/bump` and `bin/upload` also need XcodeGen, and without it you can upload the build another way and the rest of the release still works ([what your app needs](docs/setup.md#what-your-app-needs)). The demo has only been run on a Mac. On Linux the tests pass, but it hasn't been run with Console, which is early access there. Real builds and uploads need a Mac.
 - It's only tested with Claude Code. The instructions are plain `AGENTS.md` files and the scripts don't depend on any agent, so the demo template should also run on Codex, OpenCode, Cursor or Antigravity (Provider, under Advanced). But the Allow step and the folder lockdown are Claude Code rules: another CLI has neither until you set up its own, so keep it to the fake.
 
 ## License

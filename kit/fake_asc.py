@@ -35,6 +35,8 @@ def now() -> str:
 class Fake:
     def __init__(self, path: str) -> None:
         self.path = pathlib.Path(path)
+        if not self.path.exists():
+            raise SystemExit(f"No fake state at {path}. Run make demo first.")
         self.s = json.loads(self.path.read_text())
 
     def save(self) -> None:
@@ -144,7 +146,9 @@ class Fake:
 
         if method == "GET" and (m := re.fullmatch(r"/v1/appStoreVersions/([\w-]+)/appStoreReviewDetail", p)):
             d = next((x for x in self.s.get("review_details", []) if x["version"] == m[1]), None)
-            return {"data": {"type": "appStoreReviewDetails", "id": d["id"], "attributes": {"notes": d["notes"]}} if d else None}
+            if not d:  # as Apple does
+                raise SystemExit(f"GET {p} -> 404\nResource not found")
+            return {"data": {"type": "appStoreReviewDetails", "id": d["id"], "attributes": {"notes": d["notes"]}}}
 
         if method == "POST" and p == "/v1/appStoreReviewDetails":
             vid = data["relationships"]["appStoreVersion"]["data"]["id"]

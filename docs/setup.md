@@ -8,7 +8,7 @@ Copy `.env.example` to `.env` and fill in `APP_STORE_KEY_ID` and `APP_STORE_ISSU
 
 Put the `.p8` key at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`, or set `APP_STORE_P8_PATH`. Real mode runs `kit/asc.py` through [uv](https://docs.astral.sh/uv/), so install uv first; it fetches the one dependency on first run.
 
-Set `SWITCH_API` to your server's API address. For Console's local server, the port is `api` in `~/Library/Application Support/switchdash/local-switch-server/ports.json`.
+Set `SWITCH_API` to your server's API address. For Console's local server, the port is `api` in `~/Library/Application Support/switchdash/local-switch-server/ports.json`, which on Linux should be under `~/.config/switchdash/`.
 
 ## 2. Create the agents
 
@@ -60,7 +60,7 @@ Paths are relative to the app's repo.
 | `marketing/localization/<locale>/strings.json`, one folder per App Store locale | What's New and the description | `@release` runs `pull-text`, which starts them from your newest version on Apple, in every language it already has. What's New is then written from the commits |
 | `marketing/app-review-notes.md` | App Review notes | `review-notes` prints the notes on Apple, and `@release` creates the file with your approval |
 | `project.yml` for XcodeGen, with a top-level `name` matching the scheme | `bin/bump` and `bin/upload` | They refuse. Upload the build another way and the rest of the release still works, starting from a VALID build |
-| A Mac app | `bin/upload`, which always builds for macOS | Same as above. Other platforms are untested |
+| A Mac app | Every command, which all assume the macOS platform | Not supported |
 
 A minimal `strings.json`. Other keys in the file are ignored:
 
@@ -75,7 +75,7 @@ A minimal `strings.json`. Other keys in the file are ignored:
 
 `version` here is the group for text that belongs to an App Store version, not a version number, so the text can stay the same between releases. `whatsNew` and `description` can each be a string or a list of lines.
 
-In `app-review-notes.md`, the notes go between the first two `---` lines, so you can keep your own comments above and below them. With only one `---`, the notes are everything after it:
+In `app-review-notes.md`, the notes go between the first two `---` lines, so you can keep your own comments above and below them. With only one `---`, the notes are everything after it. A file with no `---` is refused:
 
 ```markdown
 # My notes to myself, not sent to Apple

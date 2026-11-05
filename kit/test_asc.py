@@ -57,11 +57,45 @@ def main() -> None:
     assert any(e["what"] == "build 1.1.0 (7)" and e["to"] == "VALID" for e in events), events
     run(state, "attach-build", APP, "1.1.0", "7", "--apply")
 
+    with tempfile.TemporaryDirectory() as stale:
+        copy = pathlib.Path(stale) / "locales"
+        shutil.copytree(locales, copy)
+        old = {x["locale"]: x["whatsNew"] for x in json.loads(pathlib.Path(state).read_text())["localizations"]}
+        strings = json.loads((copy / "hu/strings.json").read_text())
+        strings["version"]["whatsNew"] = old["hu"]
+        (copy / "hu/strings.json").write_text(json.dumps(strings))
+        try:  # Apple copied last release's text, so a missed language looks unchanged
+            run(state, "whatsnew", APP, "1.1.0", "--dir", str(copy), "--apply")
+            raise AssertionError("a language still on last release's What's New wasn't refused")
+        except SystemExit as e:
+            assert "translations didn't" in str(e) and "hu" in str(e), e
+        data = json.loads(pathlib.Path(state).read_text())
+        kept = json.dumps(data)
+        new_id = next(v["id"] for v in data["versions"] if v["version"] == "1.1.0")
+        for loc in data["localizations"]:
+            if loc["version"] == new_id:
+                loc["whatsNew"] = ""
+        pathlib.Path(state).write_text(json.dumps(data))
+        try:  # the same mistake if Apple leaves the new version empty
+            run(state, "whatsnew", APP, "1.1.0", "--dir", str(copy), "--apply")
+            raise AssertionError("a stale language wasn't refused when Apple copied nothing")
+        except SystemExit as e:
+            assert "translations didn't" in str(e) and "hu" in str(e), e
+        pathlib.Path(state).write_text(kept)
+        for loc in ("en-US", "de-DE", "ja"):
+            strings = json.loads((copy / loc / "strings.json").read_text())
+            strings["version"]["whatsNew"] = old[loc]
+            (copy / loc / "strings.json").write_text(json.dumps(strings))
+        try:
+            run(state, "whatsnew", APP, "1.1.0", "--dir", str(copy))
+            raise AssertionError("last release's What's New wasn't refused")
+        except SystemExit as e:
+            assert "still the text of version" in str(e), e
+
     out = run(state, "whatsnew", APP, "1.1.0", "--dir", locales, "--apply")
     assert "4 locale(s) updated" in out, out
     assert "unchanged" in run(state, "whatsnew", APP, "1.1.0", "hu", "--dir", locales)
-    assert "4 locale(s) updated" in run(state, "description", APP, "1.1.0", "--dir", locales, "--apply")
-    assert "0 locale(s) to update" in run(state, "description", APP, "1.1.0", "--dir", locales)
+    assert "0 locale(s) to update" in run(state, "description", APP, "1.1.0", "--dir", locales), "Apple copied the old description"
 
     # no language files or notes yet: refused with directions, then started from Apple
     with tempfile.TemporaryDirectory() as bare:
@@ -76,7 +110,12 @@ def main() -> None:
         assert not folder.exists(), "a dry run must not write"
         run(state, "pull-text", APP, "--repo", bare, "--apply")
         pulled = json.loads((folder / "en-US/strings.json").read_text())["version"]
-        assert pulled["description"] == ["DemoCam is a fictional Mac virtual camera."] or pulled["description"], pulled
+        assert pulled == {"description": "DemoCam is a fictional Mac virtual camera.", "whatsNew": ""}, pulled
+        try:
+            run(state, "whatsnew", APP, "1.1.0", "--dir", str(folder))
+            raise AssertionError("a language with no What's New wasn't refused")
+        except SystemExit as e:
+            assert "whatsNew is empty" in str(e), e
         assert "0 locale(s) to update" in run(state, "description", APP, "1.1.0", "--dir", str(folder))
         (folder / "hu/strings.json").write_text('{"version": {"whatsNew": "mine", "description": "mine"}}')
         assert "already there" in run(state, "pull-text", APP, "--repo", bare, "--apply")
@@ -112,6 +151,11 @@ def main() -> None:
             raise AssertionError("a description missing its translations wasn't refused")
         except SystemExit as e:
             assert "translations didn't" in str(e) and "hu" in str(e), e
+        try:
+            run(state, "description", APP, "1.1.0", "en-US", "--dir", str(copy), "--apply")
+            raise AssertionError("naming one language got past the translation check")
+        except SystemExit as e:
+            assert "translations didn't" in str(e), e
         hungarian = json.loads((copy / "hu/strings.json").read_text())
         hungarian["version"]["description"] = ["Uj funkcio."]
         (copy / "hu/strings.json").write_text(json.dumps(hungarian))
@@ -120,7 +164,7 @@ def main() -> None:
             run(state, "description", APP, "1.1.0", "--dir", str(copy), "--source", "hu", "--apply")
             raise AssertionError("another source language wasn't checked")
         except SystemExit as e:
-            assert "The hu description" in str(e) and "en-US" in str(e), e
+            assert "The hu text" in str(e) and "en-US" in str(e), e
         try:
             run(state, "description", APP, "1.1.0", "--dir", str(copy), "--source", "fr-FR")
             raise AssertionError("a missing source language wasn't refused")
@@ -129,6 +173,7 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory() as notes_repo:
         assert "no notes on Apple" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+        assert "no notes on Apple" in run(state, "review-notes", APP, "1.0.0", "--repo", notes_repo), "the live version must be readable"
         try:
             run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo, "--apply")
             raise AssertionError("--apply with no notes file wasn't refused")
@@ -137,12 +182,18 @@ def main() -> None:
         notes = pathlib.Path(notes_repo) / "marketing/app-review-notes.md"
         notes.parent.mkdir()
         notes.write_text("# Heading\n\n---\n\nThe notes.\n\n---\n\nOur own changelog.\n")
-        assert "to update" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+        assert "Review notes to update:" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
         assert not json.loads(pathlib.Path(state).read_text()).get("review_details"), "a dry run must not write"
         run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo, "--apply")
         assert [d["notes"] for d in json.loads(pathlib.Path(state).read_text())["review_details"]] == ["The notes."]
         assert "0 to update" in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
-        notes.write_text("x" * 4001)
+        notes.write_text("No rule in this file.")
+        try:
+            run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
+            raise AssertionError("notes with no --- line weren't refused")
+        except SystemExit as e:
+            assert "no --- line" in str(e), e
+        notes.write_text("---\n" + "x" * 4001)
         try:
             run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
             raise AssertionError("over-long notes weren't refused")
@@ -216,12 +267,13 @@ def main() -> None:
     text = run(state, "customer-reviews", APP)
     assert "@release" not in text and "<!channel" not in text, text
     for short in ("--app", "--appl", "--a"):  # permission rules match --apply as text, so no abbreviations
-        try:
-            run(state, "release", APP, "1.1.0", short)
-        except SystemExit as e:
-            assert e.code == 2, e
-        else:
-            raise AssertionError(f"{short} was accepted")
+        with contextlib.redirect_stderr(io.StringIO()):
+            try:
+                run(state, "release", APP, "1.1.0", short)
+            except SystemExit as e:
+                assert e.code == 2, e
+            else:
+                raise AssertionError(f"{short} was accepted")
     print("ok: full release with one rejection, then a new review and its reply, against the fake")
 
 

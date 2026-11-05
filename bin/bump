@@ -56,6 +56,9 @@ def main() -> None:
     number = max([int(build)] + [int(b["build"]) for b in builds if b["build"].isdigit()]) + 1
     print(f"{'Bumping' if a.apply else 'Would bump'} {current} ({build}) to {a.version} ({number}), and commit:",
           ", ".join(changing + notes))
+    others = [line for line in git(a.repo, "status", "--porcelain").splitlines() if line[3:] not in changing + notes]
+    if others:
+        print(f"Note: {len(others)} other uncommitted file(s). bin/upload refuses until they're committed.")
     if not a.apply:
         return
 
