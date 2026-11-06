@@ -10,3 +10,5 @@ NEW IN THIS VERSION
 A new off screen when the camera is stopped.
 
 No changes to permissions or data handling.
+
+---

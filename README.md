@@ -6,7 +6,7 @@ An App Store release is about an hour of chores for me, in 32 languages, and I'm
 
 **This is real work, not a simulation.** The agents run in real Slack rooms, and `@asc` watches the real App Store Connect for my apps [FrostCam](https://frostcam.app) and [WarmCam](https://warmcam.app). The only fake is the [demo](#run-the-demo), so that you can try it with no Apple account, and it's labelled as one.
 
-<!-- After the release: add which versions shipped this way, and the measured time. -->
+FrostCam 1.3.0 and WarmCam 1.1.0 went to App Review this way on 6 Nov 2026. WarmCam took 41 minutes from `@release ship WarmCam 1.1.0` to submitted, with its text in 32 languages. [A full run of the demo](docs/walkthrough.md) shows every step.
 
 Every app gets its own room. In it you can say "ship 1.2.8", ask how sales went, or answer a customer review, without leaving the chat. **The project stops working without Switch: there is no other interface.**
 
@@ -65,7 +65,7 @@ Switch roles aren't used: the same agents serve every app room, and an agent can
 
 ## Run the demo
 
-No Apple account needed. The app is fictional, App Store Connect is a local fake, and the sales numbers are invented. Allow about 25 minutes in the room, once Switch is installed.
+No Apple account needed. The app is fictional, App Store Connect is a local fake, and the sales numbers are invented. Allow about 20 minutes in the room, once Switch is installed.
 
 You need:
 
