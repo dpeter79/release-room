@@ -56,6 +56,9 @@ class Fake:
         p, qs = url.path, dict(urllib.parse.parse_qsl(url.query))
         data = (body or {}).get("data", {})
 
+        if method == "GET" and p == "/v1/apps":
+            return {"data": [{"type": "apps", "id": i, "attributes": {"name": a["name"]}} for i, a in self.s["apps"].items()]}
+
         if method == "GET" and (m := re.fullmatch(r"/v1/apps/(\w+)", p)):
             return {"data": {"type": "apps", "id": m[1], "attributes": {"name": self.s["apps"][m[1]]["name"]}}}
 

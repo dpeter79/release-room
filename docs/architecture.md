@@ -67,7 +67,8 @@ The full text is in [`room/docs/release-checklist.md`](../room/docs/release-chec
 | `room/template.yaml`, `room/docs/` | The room template, and the documents `save_template.py` embeds in it |
 | `bin/asc`, `bin/sales`, `bin/bump`, `bin/upload` | What agents call. `common.py` holds what they share |
 | `kit/` | App Store Connect commands, the fake, fixtures and their test |
+| `setup_app.py` | `make setup`: sets it up for your own apps |
 | `asc_poster.py`, `register_asc.py` | `@asc` itself, and its one-time registration |
 | `switch_op.py` | Calls any Switch operation as `@asc`, for example `list_all_rooms` |
 | `demo/` | Demo setup and invented sales. `demo/DemoCam` is generated |
-| `state/`, `rooms.json`, `.env` | Generated and git-ignored: poster state, the fake's state, the sales cache, your rooms and your keys |
+| `state/`, `apps.json`, `rooms.json`, `.env` | Generated and git-ignored: poster state, the fake's state, the sales cache, your apps, your rooms and your keys |

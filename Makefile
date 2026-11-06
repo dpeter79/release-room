@@ -6,8 +6,11 @@ help:
 	@echo "make advance  play Apple one step"
 	@echo "make reset    start the demo's fake over"
 	@echo "make test     run the tests; needs no Switch, Apple account or network"
+	@echo "make setup    set it up for your own apps"
 demo:
 	python3 demo/setup.py
+setup:
+	python3 setup_app.py
 poster:
 	python3 demo/setup.py --connect
 	python3 asc_poster.py --every 20
@@ -21,5 +24,6 @@ test:
 	python3 tests/test_sales.py
 	python3 tests/test_lock.py
 	python3 tests/test_upload.py
+	python3 tests/test_setup.py
 	cd kit && python3 test_asc.py
-.PHONY: help demo poster advance reset test
+.PHONY: help demo setup poster advance reset test

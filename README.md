@@ -4,7 +4,7 @@
 
 An App Store release is about an hour of chores for me, in 32 languages, and I'm the glue: every step ends with me noticing something changed and telling the next thing to start. Release Room moves it into one chat room on [Switch](https://docs.switchagents.ai). Four Claude Code agents do the chores, a fifth gives App Store Connect a voice in the room, and nothing irreversible happens until a person taps Allow.
 
-**This is real work, not a simulation.** The agents run in real Slack rooms, and `@asc` watches the real App Store Connect for my apps FrostCam and WarmCam. The only fake is the [demo](#run-the-demo), so that you can try it with no Apple account, and it's labelled as one.
+**This is real work, not a simulation.** The agents run in real Slack rooms, and `@asc` watches the real App Store Connect for my apps [FrostCam](https://frostcam.app) and [WarmCam](https://warmcam.app). The only fake is the [demo](#run-the-demo), so that you can try it with no Apple account, and it's labelled as one.
 
 <!-- After the release: add which versions shipped this way, and the measured time. -->
 
@@ -112,7 +112,7 @@ In the room, type these in turn. `make advance`, in a second terminal, plays App
 
 ## Use it for your own app
 
-[Setup guide](docs/setup.md): your App Store Connect key, the agents, Slack, the template and the optional sales command.
+`make setup` does most of it: it finds your key and server, lists your apps from Apple, checks your repo, registers `@asc` and saves a template with your answers filled in. The [setup guide](docs/setup.md) covers what's left: your App Store Connect key, Slack, the trust dialog and the optional sales command.
 
 ## Safety
 

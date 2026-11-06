@@ -1,6 +1,25 @@
 # Use it for your own app
 
-This takes about an hour. It assumes Switch Console with a server, and Claude Code signed in, as in the [demo](../README.md#run-the-demo). Clone a fresh copy: the demo's `.env` points at the fake.
+This assumes Switch Console with a server, and Claude Code signed in, as in the [demo](../README.md#run-the-demo). Clone a fresh copy: the demo's `.env` points at the fake.
+
+## The quick way
+
+```sh
+git clone https://github.com/dpeter79/release-room && cd release-room
+make setup
+```
+
+`make setup` finds your App Store Connect key and your server, and asks only for what it can't find. It lists your apps from Apple, so you can pick one, then checks that app's repo, limits what the agents can read, registers `@asc`, and saves a template with your answers filled in. It never writes to App Store Connect. To add another app, run it again.
+
+**What you still do yourself:**
+
+- Create the App Store Connect key on Apple's site, and put the `.p8` file in `~/.appstoreconnect/private_keys`. The script needs the key's issuer ID.
+- [Connect Slack](#connect-slack), if you want Slack. Without it, the template uses your other messaging app, such as the bundled Mattermost.
+- In Console, choose **Use** on the template the script names. The first time, it also creates the four agents.
+- Open Claude Code once in this repo and accept the trust dialog, because an untrusted folder's allow rules are ignored.
+- Start `@asc` with `python3 asc_poster.py`, somewhere it can stay running.
+
+Registering `@asc` works on a local server. If it can't, the script stops and explains how to do it by hand, and you run it again afterwards. For anything else, the rest of this page covers the same steps by hand. [What your app needs](#what-your-app-needs) and [Sales](#sales-optional) apply either way.
 
 ## 1. Add your App Store Connect key
 

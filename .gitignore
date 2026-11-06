@@ -4,6 +4,7 @@ __pycache__/
 *.p8
 .switch/
 rooms.json
+apps.json
 settings.local.json
 demo/DemoCam/
 *.log
