@@ -12,7 +12,7 @@ FrostCam 1.3.0 and WarmCam 1.1.0 shipped this way, and both went live on the Mac
 
 Every app gets its own room. In it you can say "ship 1.2.8", ask how sales went, or answer a customer review, without leaving the chat. **The project stops working without Switch: there is no other interface.**
 
-Try it with no Apple account: [Run the demo](#run-the-demo). See it first: [a full run, step by step](docs/walkthrough.md).
+Try it with no Apple account: [Run the demo](#run-the-demo). See it first: [the 3-minute video](https://youtu.be/i61B2g0mV-w), or [a full run, step by step](docs/walkthrough.md).
 
 ```mermaid
 sequenceDiagram
