@@ -65,10 +65,13 @@ class Apple:
                                      headers={"Authorization": "Bearer " + self._token(),
                                               "Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req) as r:
+            # A timeout, so a dead connection can't stall the poster for hours (it did, on 6 Nov).
+            with urllib.request.urlopen(req, timeout=60) as r:
                 return json.loads(r.read() or b"{}")
         except urllib.error.HTTPError as e:
             raise SystemExit(f"{method} {path} -> {e.code}\n{e.read().decode()[:800]}")
+        except OSError as e:
+            raise SystemExit(f"{method} {path}: no answer from Apple ({e}). A write may or may not have happened: run status before trying again.")
 
 
 def q(path: str, **params) -> str:
@@ -155,6 +158,12 @@ def live_version(vs: list[dict]) -> str | None:
     # live one is the newest of them.
     released = [v for v in vs if v["state"] == "READY_FOR_DISTRIBUTION"]
     return max(released, key=lambda v: v["created"])["version"] if released else None
+
+
+def cmd_apps(api, a) -> None:
+    data = api.call("GET", q("/v1/apps", limit=200, **{"fields[apps]": "name,bundleId"}))["data"]
+    for app in sorted(data, key=lambda x: x["attributes"]["name"].lower()):
+        print(json.dumps({"id": app["id"], "name": app["attributes"]["name"]}, ensure_ascii=False))
 
 
 def cmd_status(api, a) -> None:
@@ -462,6 +471,7 @@ def main(argv: list[str] | None = None) -> None:
         p.set_defaults(fn=fn)
         return p
 
+    sub.add_parser("apps", allow_abbrev=False).set_defaults(fn=cmd_apps)
     add("status", cmd_status, apply=False)
     add("watch", cmd_watch, apply=False).add_argument("--state", required=True)
     add("create-version", cmd_create_version, "version").add_argument("--release-type", default="MANUAL",
