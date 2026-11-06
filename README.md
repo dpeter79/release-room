@@ -4,9 +4,11 @@
 
 An App Store release is about an hour of chores for me, in 32 languages, and I'm the glue: every step ends with me noticing something changed and telling the next thing to start. Release Room moves it into one chat room on [Switch](https://docs.switchagents.ai). Four Claude Code agents do the chores, a fifth gives App Store Connect a voice in the room, and nothing irreversible happens until a person taps Allow.
 
+![The real WarmCam 1.1.0 release: one line typed in the room, the version bump waits for Allow, and Apple's VALID wakes @release](docs/images/release-room.gif)
+
 **This is real work, not a simulation.** The agents run in real Slack rooms, and `@asc` watches the real App Store Connect for my apps [FrostCam](https://frostcam.app) and [WarmCam](https://warmcam.app). The only fake is the [demo](#run-the-demo), so that you can try it with no Apple account, and it's labelled as one.
 
-FrostCam 1.3.0 and WarmCam 1.1.0 went to App Review this way on 6 Nov 2026. WarmCam took 41 minutes from `@release ship WarmCam 1.1.0` to submitted, with its text in 32 languages. [A full run of the demo](docs/walkthrough.md) shows every step.
+FrostCam 1.3.0 and WarmCam 1.1.0 shipped this way, and both went live on the Mac App Store on 6 Nov 2026. WarmCam took 41 minutes from `@release ship WarmCam 1.1.0` to submitted, with its text in 32 languages. From request to live took about 12 h 55 min, mostly Apple's review queue, and about 10 minutes of it was waiting on me. [A full run of the demo](docs/walkthrough.md) shows every step.
 
 Every app gets its own room. In it you can say "ship 1.2.8", ask how sales went, or answer a customer review, without leaving the chat. **The project stops working without Switch: there is no other interface.**
 
@@ -56,6 +58,18 @@ sequenceDiagram
 | App Store Connect reports changes and reviews | Agent protocol: `POST /agents/{id}/message` | [`asc_poster.py`](asc_poster.py), [`register_asc.py`](register_asc.py) |
 | Demo setup and room lookup | Operations API: `/agents/{id}/ops` | [`switch_op.py`](switch_op.py) |
 | Chat app | Mattermost bundled with the local server, or [Slack](docs/setup.md#connect-slack) | Chosen in the Messaging app field when you run the template |
+
+From the real WarmCam 1.1.0 release. The Allow card shows the exact command before anything runs:
+
+![Permission needed: bin/bump WarmCam 1.1.0 --apply, with Allow once, Allow for this session and Decline](docs/images/allow.png)
+
+`@asc` reports that Apple finished processing the build, and its mention starts `@release`'s turn, with nobody typing:
+
+![asc posts build 1.1.0 (15): new -> VALID, and release carries on with step 5](docs/images/asc-wakes-release.png)
+
+`@l10n` reports on all 32 languages and flags what a person should check:
+
+![l10n's report: translations written to all 32 locales, character counts per locale, and flags](docs/images/l10n-report.png)
 
 Switch roles aren't used: the same agents serve every app room, and an agent can hold one role at a time, so a second room would have no holder.
 
