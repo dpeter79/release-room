@@ -38,6 +38,7 @@ import urllib.request
 
 BASE = "https://api.appstoreconnect.apple.com"
 TEXT_MAX = 4000
+RETRY_WAIT = 30  # seconds before retrying a submit step Apple failed with a 500
 # States in which Apple lets a version's metadata and build change.
 EDITABLE = {"PREPARE_FOR_SUBMISSION", "REJECTED", "DEVELOPER_REJECTED", "METADATA_REJECTED"}
 
@@ -403,10 +404,18 @@ def cmd_submit(api, a) -> None:
             "type": "reviewSubmissions", "attributes": {"platform": a.platform},
             "relationships": {"app": rel("apps", a.app)}}}).get("data", {}).get("id", "<new submission>")
     if not open_ or v["state"] == "PREPARE_FOR_SUBMISSION":
-        write(api, a.apply, "POST", "/v1/reviewSubmissionItems", {"data": {
-            "type": "reviewSubmissionItems", "relationships": {
-                "reviewSubmission": rel("reviewSubmissions", sub_id),
-                "appStoreVersion": rel("appStoreVersions", v["id"])}}})
+        item = {"data": {"type": "reviewSubmissionItems", "relationships": {
+            "reviewSubmission": rel("reviewSubmissions", sub_id), "appStoreVersion": rel("appStoreVersions", v["id"])}}}
+        # On 6 Nov Apple answered 500 to this for both apps, right after creating the submission, and a retry a minute later worked.
+        for attempt in range(3):
+            try:
+                write(api, a.apply, "POST", "/v1/reviewSubmissionItems", item)
+                break
+            except SystemExit as e:
+                if "-> 500" not in str(e) or attempt == 2:
+                    raise
+                print(f"Apple answered with a server error. Trying again in {RETRY_WAIT} seconds.", flush=True)
+                time.sleep(RETRY_WAIT)
     write(api, a.apply, "PATCH", f"/v1/reviewSubmissions/{sub_id}", {"data": {
         "type": "reviewSubmissions", "id": sub_id, "attributes": {"submitted": True}}})
     print(f"{'Submitted' if a.apply else 'Would submit'} {a.version} for review.")

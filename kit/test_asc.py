@@ -205,7 +205,20 @@ def main() -> None:
         notes.unlink()
         assert "Changed." in run(state, "review-notes", APP, "1.1.0", "--repo", notes_repo)
 
-    run(state, "submit", APP, "1.1.0", "--apply")
+    # Apple's 500 on adding the version to a new submission is retried, not left for a person.
+    real_call, failed = Fake.call, []
+
+    def flaky(self, method, path, body=None):
+        if method == "POST" and path == "/v1/reviewSubmissionItems" and not failed:
+            failed.append(path)
+            raise SystemExit("POST /v1/reviewSubmissionItems -> 500\nUNEXPECTED_ERROR")
+        return real_call(self, method, path, body)
+    Fake.call, asc.RETRY_WAIT = flaky, 0
+    try:
+        out = run(state, "submit", APP, "1.1.0", "--apply")
+    finally:
+        Fake.call = real_call
+    assert failed and "Trying again" in out and "Submitted" in out, out
     assert version_state(state, "1.1.0") == "WAITING_FOR_REVIEW"
     Fake(state).advance()
     Fake(state).advance()  # the fixture's first outcome is a rejection
